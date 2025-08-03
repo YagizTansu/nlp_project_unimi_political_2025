@@ -1,126 +1,93 @@
+import json
 import pandas as pd
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
-from transformers import (AutoTokenizer,  AutoModelForSequenceClassification, TrainingArguments,Trainer,EarlyStoppingCallback)
-from datasets import Dataset
+from transformers import (AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer, EarlyStoppingCallback)
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, precision_score, recall_score
-from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-train_df = pd.read_csv('turkish_emotions_datasets/go_emotions_turkish_train.csv')
-emotions_df = pd.read_csv('turkish_emotions_datasets/emotions_english_turkish.csv')
 
-print(f"Train data shape: {train_df.shape}")
-print(f"Emotions data shape: {emotions_df.shape}")
+# Load data
+emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/emotions_english_turkish.csv')
+valid_emotion_ids = set(emotions_df['emotion_id'].tolist())
 
-# Clean emotion_id column - handle multiple labels
-def parse_emotion_ids(emotion_str):
-    """Parse emotion_id string that may contain multiple comma-separated values"""
-    if pd.isna(emotion_str):
-        return []
-    
-    # Convert to string and clean
-    emotion_str = str(emotion_str).strip()
-    
-    # Handle quoted strings with commas
-    if emotion_str.startswith('"') and emotion_str.endswith('"'):
-        emotion_str = emotion_str[1:-1]
-    
-    # Split by comma and convert to integers
+train_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/go_emotions_english_train.csv')
+label_column = 'labels' if 'labels' in train_df.columns else train_df.columns[1]
+text_column = train_df.columns[0]
+
+# Filter and process labels
+def has_valid_emotion(labels_str):
+    if pd.isna(labels_str):
+        return False
     try:
-        emotion_ids = [int(x.strip()) for x in emotion_str.split(',') if x.strip()]
-        return emotion_ids
+        if isinstance(labels_str, (int, float)):
+            emotion_ids = [int(labels_str)]
+        else:
+            emotion_ids = [int(x.strip()) for x in str(labels_str).split(',')]
+        return any(eid in valid_emotion_ids for eid in emotion_ids)
     except:
-        # If parsing fails, try single value
-        try:
-            return [int(emotion_str)]
-        except:
-            return []
+        return False
 
-# Apply parsing to emotion_id column
-train_df['emotion_ids'] = train_df['emotion_id'].apply(parse_emotion_ids)
+train_df_filtered = train_df[train_df[label_column].apply(has_valid_emotion)].copy()
 
-# Remove rows with no valid emotion IDs
-train_df = train_df[train_df['emotion_ids'].apply(len) > 0].reset_index(drop=True)
+# Create label mapping
+old_to_new_label_map = {emotion_id: i for i, emotion_id in enumerate(sorted(valid_emotion_ids))}
+new_to_old_label_map = {i: emotion_id for emotion_id, i in old_to_new_label_map.items()}
 
-print(f"After cleaning: {len(train_df)} rows")
+def convert_labels(labels_str):
+    if pd.isna(labels_str):
+        return []
+    try:
+        if isinstance(labels_str, (int, float)):
+            emotion_ids = [int(labels_str)]
+        else:
+            emotion_ids = [int(x.strip()) for x in str(labels_str).split(',')]
+        return [old_to_new_label_map[eid] for eid in emotion_ids if eid in valid_emotion_ids]
+    except:
+        return []
 
-# Group by text and aggregate emotion labels
-print("Creating multi-label dataset...")
-grouped_data = []
+train_df_filtered['new_labels'] = train_df_filtered[label_column].apply(convert_labels)
+train_df_filtered = train_df_filtered[train_df_filtered['new_labels'].apply(len) > 0].copy()
 
-for text, group in tqdm(train_df.groupby('text')):
-    # Collect all emotion IDs for this text
-    all_emotion_ids = []
-    for emotion_list in group['emotion_ids']:
-        all_emotion_ids.extend(emotion_list)
-    
-    # Remove duplicates
-    unique_emotions = list(set(all_emotion_ids))
-    
-    # Create one-hot vector (28 emotions: 0-27)
-    label_vector = [0] * 28
-    for emotion_id in unique_emotions:
-        if 0 <= emotion_id <= 27:  # Ensure valid range
-            label_vector[emotion_id] = 1
-    
-    grouped_data.append({
-        'text': text,
-        'labels': label_vector
-    })
+# Initialize model
+model_name = "xlm-roberta-base"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+num_labels = len(valid_emotion_ids)
 
-# Convert to DataFrame
-df = pd.DataFrame(grouped_data)
-print(f"Final dataset size: {len(df)} unique texts")
+model = AutoModelForSequenceClassification.from_pretrained(
+    model_name,
+    num_labels=num_labels,
+    problem_type="multi_label_classification"
+)
+model.gradient_checkpointing_enable()
 
-# Check label distribution
-label_counts = np.array([row for row in df['labels']]).sum(axis=0)
-print(f"Label distribution (top 10): {sorted(enumerate(label_counts), key=lambda x: x[1], reverse=True)[:10]}")
+# Prepare data
+def create_multi_hot_labels(label_lists, num_classes):
+    labels = np.zeros((len(label_lists), num_classes), dtype=np.float32)
+    for i, label_list in enumerate(label_lists):
+        for label_id in label_list:
+            labels[i][label_id] = 1.0
+    return labels
 
-# Train-validation split
-train_texts, val_texts, train_labels, val_labels = train_test_split(
-    df['text'].tolist(),
-    df['labels'].tolist(),
-    test_size=0.2,
+train_texts_split, val_texts_split, train_labels_split, val_labels_split = train_test_split(
+    train_df_filtered[text_column].tolist(), 
+    train_df_filtered['new_labels'].tolist(), 
+    test_size=0.2, 
     random_state=42
 )
 
-print(f"Train size: {len(train_texts)}, Validation size: {len(val_texts)}")
-
-# Initialize tokenizer and model
-model_name = "xlm-roberta-base"
-print(f"Loading tokenizer and model: {model_name}")
-
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(
-    model_name,
-    num_labels=28,
-    problem_type="multi_label_classification"
-)
-
-# Enable gradient checkpointing to save memory
-model.gradient_checkpointing_enable()
-
-# Tokenize data
 def tokenize_function(texts):
-    return tokenizer(
-        texts,
-        padding=True,
-        truncation=True,
-        max_length=64,  # 96'dan 64'e düşür - daha az memory
-        return_tensors="pt"
-    )
+    return tokenizer(texts, padding=True, truncation=True, max_length=64, return_tensors="pt")
 
-print("Tokenizing data...")
-train_encodings = tokenize_function(train_texts)
-val_encodings = tokenize_function(val_texts)
+train_encodings = tokenize_function(train_texts_split)
+val_encodings = tokenize_function(val_texts_split)
 
-# Create datasets
+train_multi_hot_labels = create_multi_hot_labels(train_labels_split, num_labels)
+val_multi_hot_labels = create_multi_hot_labels(val_labels_split, num_labels)
+
 class EmotionDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels):
         self.encodings = encodings
@@ -134,8 +101,13 @@ class EmotionDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
 
-train_dataset = EmotionDataset(train_encodings, train_labels)
-val_dataset = EmotionDataset(val_encodings, val_labels)
+train_dataset = EmotionDataset(train_encodings, train_multi_hot_labels)
+val_dataset = EmotionDataset(val_encodings, val_multi_hot_labels)
+
+# Verify CSV data is loaded correctly instead of saving mappings
+print(f"CSV data loaded successfully. Found {len(emotions_df)} emotion entries.")
+print(f"Valid emotion IDs: {sorted(list(valid_emotion_ids))}")
+print(f"Sample emotions from CSV: {emotions_df.head(3).to_dict('records')}")
 
 # Define compute metrics function
 def compute_metrics(eval_pred):
@@ -161,28 +133,28 @@ def compute_metrics(eval_pred):
 training_args = TrainingArguments(
     output_dir='./results',
     num_train_epochs=3,
-    per_device_train_batch_size=8,   # 32'den 8'e düşür
-    per_device_eval_batch_size=8,    # 32'den 8'e düşür
-    gradient_accumulation_steps=8,   # 2'den 8'e artır (etkili batch size = 8*8 = 64)
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    gradient_accumulation_steps=8,
     warmup_steps=200,
     weight_decay=0.01,
     learning_rate=3e-5,
     fp16=True,
-    dataloader_num_workers=2,        # 4'den 2'ye düşür
-    dataloader_pin_memory=False,     # Memory kullanımını azalt
+    dataloader_num_workers=2,
+    dataloader_pin_memory=False,
     remove_unused_columns=False,
     logging_dir='./logs',
     logging_steps=50,
     eval_strategy="steps",
-    eval_steps=400,                  # 200'den 400'e artır (daha az evaluation)
+    eval_steps=400,
     save_strategy="steps",
-    save_steps=400,                  # 200'den 400'e artır
+    save_steps=400,
     load_best_model_at_end=True,
     metric_for_best_model="micro_f1",
     greater_is_better=True,
     report_to=None,
-    save_total_limit=2,              # Sadece en iyi 2 checkpoint'i sakla
-    eval_accumulation_steps=4        # Evaluation sırasında memory kullanımını azalt
+    save_total_limit=2,
+    eval_accumulation_steps=4
 )
 
 # Initialize trainer
@@ -215,7 +187,7 @@ print(f"Model and tokenizer saved to: {output_dir}")
 # Test prediction function
 def predict_emotions(text, threshold=0.5):
     """Predict emotions for a given text"""
-    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=64)  # 128'den 64'e düşür
+    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=64)
     inputs = {k: v.to(device) for k, v in inputs.items()}
     
     model.eval()
@@ -234,5 +206,27 @@ predicted_emotions, scores = predict_emotions(sample_text)
 print(f"\nSample prediction for: '{sample_text}'")
 print(f"Predicted emotions: {predicted_emotions}")
 print(f"Top 5 scores: {sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[:5]}")
+
+# Test with multiple samples
+sample_texts = [
+    "Bu gerçekten harika bir gün!",  # Happiness/Joy
+    "Bugün kendimi çok üzgün hissediyorum.",  # Sadness
+    "Bu haber beni çok kızdırdı!",  # Anger
+    "Yarınki sınavdan çok korkuyorum.",  # Fear
+    "Bu yemek gerçekten iğrenç.",  # Disgust
+    "Bu film beni çok şaşırttı.",  # Surprise
+    "Seninle gurur duyuyorum.",  # Pride
+    "Yaptığım hatadan dolayı kendimi suçlu hissediyorum.",  # Guilt
+    "Ona bu konuda çok kıskançlık duyuyorum.",  # Jealousy
+    "Akşamki toplantı beni endişelendiriyor.",  # Anxiety
+    "Bu müzik beni huzurlu hissettiriyor."  # Calm
+]
+
+print("\nTesting model with multiple samples:")
+for sample_text in sample_texts:
+    predicted_emotions, scores = predict_emotions(sample_text)
+    print(f"\nSample: '{sample_text}'")
+    print(f"Predicted emotions: {predicted_emotions}")
+    print(f"Top 3 scores: {sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[:3]}")
 
 print("\nTraining completed successfully!")
