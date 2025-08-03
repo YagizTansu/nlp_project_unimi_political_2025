@@ -1,0 +1,29 @@
+emotion_id,emotion_name_en,emotion_name_tr
+0,admiration,hayranlık
+1,amusement,eğlenme
+2,anger,öfke
+3,annoyance,can sıkıntısı
+4,approval,onay
+5,caring,önemseme
+6,confusion,kafa karışıklığı
+7,curiosity,merak
+8,desire,arzu
+9,disappointment,hayal kırıklığı
+10,disapproval,onaylamama
+11,disgust,iğrenme
+12,embarrassment,utanç
+13,excitement,heyecan
+14,fear,korku
+15,gratitude,minnettarlık
+16,grief,keder
+17,joy,neşe
+18,love,aşk
+19,nervousness,gerginlik
+20,optimism,iyimserlik
+21,pride,gurur
+22,realization,farkındalık
+23,relief,rahatlama
+24,remorse,pişmanlık
+25,sadness,üzüntü
+26,surprise,şaşkınlık
+27,neutral,nötr
