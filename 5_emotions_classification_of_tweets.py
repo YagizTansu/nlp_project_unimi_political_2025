@@ -2,190 +2,200 @@ import pandas as pd
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from tqdm import tqdm
 import warnings
+import re
+
 warnings.filterwarnings('ignore')
 
-# Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {device}")
+
+# Text cleaning function
+def clean_text(text):
+    if pd.isna(text):
+        return ""
+    
+    text = str(text)
+    
+    # Remove URLs (including t.co links and other patterns)
+    text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+    text = re.sub(r'www\.(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+    # Specifically target t.co URLs
+    text = re.sub(r'https://t\.co/[a-zA-Z0-9]+', '', text)
+    text = re.sub(r'http://t\.co/[a-zA-Z0-9]+', '', text)
+    text = re.sub(r't\.co/[a-zA-Z0-9]+', '', text)
+    
+    # Remove mentions (@username)
+    text = re.sub(r'@[A-Za-z0-9_]+', '', text)
+    
+    # Remove hashtags but keep the text (convert #example to example)
+    text = re.sub(r'#([A-Za-z0-9_]+)', r'\1', text)
+    
+    # Remove extra whitespace and newlines
+    text = ' '.join(text.split())
+    
+    # Remove special characters but keep Turkish characters and basic punctuation
+    text = re.sub(r'[^\w\sğüşıöçĞÜŞİÖÇ.,!?-]', '', text)
+    
+    return text.strip()
+
+# Load emotion definitions
+emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/emotions_english_turkish.csv')
+valid_emotion_ids = set(emotions_df['emotion_id'].tolist())
+
+# Create emotion mappings for display purposes
+emotion_id_to_name = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_en']))
+emotion_id_to_name_tr = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_tr']))
+
+# Create proper mapping between emotion IDs and model indices
+sorted_emotion_ids = sorted(list(valid_emotion_ids))
+emotion_id_to_index = {eid: idx for idx, eid in enumerate(sorted_emotion_ids)}
+index_to_emotion_id = {idx: eid for idx, eid in enumerate(sorted_emotion_ids)}
 
 # Load the fine-tuned model and tokenizer
-model_path = "./fine_tuned_turkish_bert_emotions"
-print(f"Loading model from: {model_path}")
+model_path = "./fine_tuned_turkish_emotions"
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForSequenceClassification.from_pretrained(model_path)
+model.to(device)
+model.eval()
 
-try:
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSequenceClassification.from_pretrained(model_path)
-    model.to(device)
+print(f"Loaded fine-tuned model from: {model_path}")
+
+# Prediction function
+def predict_emotions(text, threshold=0.3):
     model.eval()
-    print("Model loaded successfully!")
-except Exception as e:
-    print(f"Error loading model: {e}")
-    print("Please make sure you've run the fine-tuning script first (4_fine_tune_bert_model.py)")
-    exit(1)
-
-# Load emotion labels mapping
-emotions_df = pd.read_csv('turkish_emotions_datasets/emotions_english_turkish.csv')
-emotion_id_to_name = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_en']))
-print(f"Loaded {len(emotion_id_to_name)} emotion labels")
-
-# Load tweet dataset
-print("Loading tweet dataset...")
-tweets_df = pd.read_csv('politican_tweets_combined_data/full_tweets.csv')
-print(f"Loaded {len(tweets_df)} tweets")
-
-# Display dataset info
-print(f"Dataset columns: {list(tweets_df.columns)}")
-print(f"Authors: {tweets_df['Author'].nunique()}")
-print(f"Parties: {tweets_df['party'].value_counts().to_dict()}")
-print(f"Political sides: {tweets_df['political_side'].value_counts().to_dict()}")
-
-def predict_emotions_batch(texts, threshold=0.3, batch_size=32):
-    """Predict emotions for a batch of texts"""
-    all_predictions = []
-    all_scores = []
-    
-    for i in tqdm(range(0, len(texts), batch_size), desc="Processing batches"):
-        batch_texts = texts[i:i+batch_size]
+    cleaned_text = clean_text(text)
+    if not cleaned_text:
+        return [], np.zeros(len(sorted_emotion_ids))
         
-        # Tokenize batch
-        inputs = tokenizer(
-            batch_texts, 
-            return_tensors="pt", 
-            padding=True, 
-            truncation=True, 
-            max_length=128
-        )
+    inputs = tokenizer(cleaned_text, return_tensors="pt", padding=True, truncation=True, max_length=128)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    
+    with torch.no_grad():
+        outputs = model(**inputs)
+        probs = torch.sigmoid(outputs.logits).cpu().numpy()[0]
+
+    predicted_indices = [i for i, score in enumerate(probs) if score > threshold]
+    # Convert model indices back to emotion IDs
+    predicted_emotion_ids = [index_to_emotion_id[idx] for idx in predicted_indices]
+    return predicted_emotion_ids, probs
+
+# Test predictions
+sample_text = "Bu gerçekten harika bir gün!"
+predicted_emotions, scores = predict_emotions(sample_text)
+
+print(f"\nSample prediction for: '{sample_text}'")
+print(f"Predicted emotion IDs: {predicted_emotions}")
+print("Predicted emotions:")
+for eid in predicted_emotions:
+    print(f"  {eid}: {emotion_id_to_name[eid]} ({emotion_id_to_name_tr[eid]})")
+
+top_5 = sorted(list(enumerate(scores)), key=lambda x: x[1], reverse=True)[:5]
+print("Top 5 scores (emotion_id, emotion_name, score):")
+for model_idx, score in top_5:
+    emotion_id = index_to_emotion_id[model_idx]
+    print(f"  {emotion_id}: {emotion_id_to_name[emotion_id]} ({emotion_id_to_name_tr[emotion_id]}) - {score:.4f}")
+
+# Batch test
+sample_texts = [
+    "Bu gerçekten harika bir gün!",
+    "Bugün kendimi çok üzgün hissediyorum.",
+    "Bu haber beni çok kızdırdı!",
+    "Yarınki sınavdan çok korkuyorum.",
+    "Bu yemek gerçekten iğrenç.",
+    "Bu film beni çok şaşırttı.",
+    "Seninle gurur duyuyorum.",
+    "Yaptığım hatadan dolayı kendimi suçlu hissediyorum.",
+    "Ona bu konuda çok kıskançlık duyuyorum.",
+    "Akşamki toplantı beni endişelendiriyor.",
+    "Bu müzik beni huzurlu hissettiriyor.",
+    "Van Bölge Eğitim Ve Araştırma Hastanesi’nde yatan hastaları ziyaret ettik.Bütün hastalara acil şifalar diliyorum."
+]
+
+print("\nTesting model with multiple samples:")
+for text in sample_texts:
+    pred_ids, probs = predict_emotions(text)
+    print(f"\nText: {text}")
+    print(f"Predicted emotion IDs: {pred_ids}")
+    if pred_ids:
+        print("Predicted emotions:")
+        for eid in pred_ids:
+            print(f"  {eid}: {emotion_id_to_name[eid]} ({emotion_id_to_name_tr[eid]})")
+    
+    top_ids = sorted(list(enumerate(probs)), key=lambda x: x[1], reverse=True)[:3]
+    print("Top 3 predictions:")
+    for model_idx, score in top_ids:
+        emotion_id = index_to_emotion_id[model_idx]
+        print(f"  {emotion_id}: {emotion_id_to_name[emotion_id]} ({emotion_id_to_name_tr[emotion_id]}) - {score:.4f}")
+
+print("\nTesting completed successfully!")
+
+# Process full_tweets.csv file
+print("\nProcessing full_tweets.csv...")
+
+# Load the full tweets dataset
+full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/politican_tweets_combined_data/full_tweets.csv')
+print(f"Loaded {len(full_tweets_df)} tweets")
+
+# Function to get top 3 emotion IDs for a text
+def get_top3_emotions(text):
+    try:
+        cleaned_text = clean_text(text)
+        if not cleaned_text:
+            return ""
+        
+        model.eval()
+        inputs = tokenizer(cleaned_text, return_tensors="pt", padding=True, truncation=True, max_length=128)
         inputs = {k: v.to(device) for k, v in inputs.items()}
         
-        # Predict
         with torch.no_grad():
             outputs = model(**inputs)
-            predictions = torch.sigmoid(outputs.logits).cpu().numpy()
+            probs = torch.sigmoid(outputs.logits).cpu().numpy()[0]
         
-        # Process each text in batch
-        for pred in predictions:
-            # Get predicted emotion IDs above threshold
-            predicted_emotions = [i for i, score in enumerate(pred) if score > threshold]
-            all_predictions.append(predicted_emotions)
-            all_scores.append(pred)
+        # Get top 3 emotion indices
+        top_3_indices = sorted(list(enumerate(probs)), key=lambda x: x[1], reverse=True)[:3]
+        # Convert model indices to emotion IDs
+        top_3_emotion_ids = [index_to_emotion_id[idx] for idx, _ in top_3_indices]
+        # Return as comma-separated string
+        return ",".join(map(str, top_3_emotion_ids))
     
-    return all_predictions, all_scores
+    except Exception as e:
+        print(f"Error processing text: {str(e)}")
+        return ""
 
-def format_emotions(emotion_ids, scores=None, top_k=3):
-    """Format emotion predictions for display"""
-    if not emotion_ids:
-        return "neutral", ""
+# Apply prediction to each row (assuming the text column is the first column or named 'text')
+text_col = 'Text' if 'Text' in full_tweets_df.columns else full_tweets_df.columns[0]
+print(f"Using column '{text_col}' for predictions")
+
+# Clean texts and create new dataframe with only necessary columns
+print("Cleaning texts and preparing data...")
+cleaned_tweets_df = full_tweets_df[['ID', 'Author', 'party', 'political_side', 'Date']].copy()
+
+# Add cleaned text column (replace original Text column)
+cleaned_tweets_df['cleaned_text'] = full_tweets_df[text_col].apply(clean_text)
+
+# Process in batches for better performance
+batch_size = 100
+top3_emotions = []
+
+print("Processing emotion predictions...")
+for i in range(0, len(cleaned_tweets_df), batch_size):
+    batch_end = min(i + batch_size, len(cleaned_tweets_df))
+    batch_texts = cleaned_tweets_df['cleaned_text'].iloc[i:batch_end]
     
-    # Get emotion names
-    emotion_names = [emotion_id_to_name.get(eid, f"unknown_{eid}") for eid in emotion_ids]
+    batch_predictions = []
+    for text in batch_texts:
+        prediction = get_top3_emotions(text)
+        batch_predictions.append(prediction)
     
-    if scores is not None:
-        # Sort by scores and get top emotions
-        emotion_score_pairs = [(eid, scores[eid]) for eid in emotion_ids]
-        emotion_score_pairs.sort(key=lambda x: x[1], reverse=True)
-        
-        top_emotions = emotion_score_pairs[:top_k]
-        primary_emotion = emotion_id_to_name.get(top_emotions[0][0], "unknown")
-        
-        # Create detailed string with scores
-        detailed = "; ".join([f"{emotion_id_to_name.get(eid, f'unk_{eid}')}:{score:.3f}" 
-                             for eid, score in top_emotions])
-        
-        return primary_emotion, detailed
-    else:
-        return emotion_names[0] if emotion_names else "neutral", "; ".join(emotion_names)
+    top3_emotions.extend(batch_predictions)
+    
+    if (i // batch_size + 1) % 10 == 0:
+        print(f"Processed {batch_end}/{len(cleaned_tweets_df)} tweets...")
 
-# Apply emotion classification
-print("Applying emotion classification to tweets...")
-tweet_texts = tweets_df['Text'].fillna("").tolist()
+# Add the emotion prediction column
+cleaned_tweets_df['top3_emotion_ids'] = top3_emotions
 
-# Predict emotions
-predicted_emotions, emotion_scores = predict_emotions_batch(tweet_texts, threshold=0.3)
-
-# Process results
-print("Processing results...")
-primary_emotions = []
-detailed_emotions = []
-emotion_counts = []
-
-for i, (emotions, scores) in enumerate(zip(predicted_emotions, emotion_scores)):
-    primary, detailed = format_emotions(emotions, scores, top_k=3)
-    primary_emotions.append(primary)
-    detailed_emotions.append(detailed)
-    emotion_counts.append(len(emotions))
-
-# Add results to dataframe
-tweets_df['primary_emotion'] = primary_emotions
-tweets_df['detailed_emotions'] = detailed_emotions
-tweets_df['emotion_count'] = emotion_counts
-
-# Add individual emotion scores as binary columns (optional)
-print("Adding individual emotion columns...")
-for emotion_id, emotion_name in emotion_id_to_name.items():
-    emotion_binary = [1 if emotion_id in pred else 0 for pred in predicted_emotions]
-    tweets_df[f'emotion_{emotion_name}'] = emotion_binary
-
-# Save results
-output_file = 'politican_tweets_combined_data/tweets_with_emotions.csv'
-tweets_df.to_csv(output_file, index=False)
-print(f"Results saved to: {output_file}")
-
-# Generate analysis report
-print("\n" + "="*50)
-print("EMOTION ANALYSIS REPORT")
-print("="*50)
-
-# Overall statistics
-print(f"\nDataset Overview:")
-print(f"Total tweets: {len(tweets_df)}")
-print(f"Average emotions per tweet: {np.mean(emotion_counts):.2f}")
-print(f"Tweets with no emotions: {sum(1 for x in emotion_counts if x == 0)}")
-
-# Most common primary emotions
-print(f"\nTop 10 Primary Emotions:")
-emotion_dist = tweets_df['primary_emotion'].value_counts()
-for emotion, count in emotion_dist.head(10).items():
-    percentage = (count / len(tweets_df)) * 100
-    print(f"  {emotion}: {count} ({percentage:.1f}%)")
-
-# Emotions by political side
-print(f"\nEmotions by Political Side:")
-for side in tweets_df['political_side'].unique():
-    side_tweets = tweets_df[tweets_df['political_side'] == side]
-    top_emotion = side_tweets['primary_emotion'].value_counts().head(3)
-    print(f"  {side.upper()}:")
-    for emotion, count in top_emotion.items():
-        percentage = (count / len(side_tweets)) * 100
-        print(f"    {emotion}: {count} ({percentage:.1f}%)")
-
-# Emotions by party
-print(f"\nEmotions by Party:")
-for party in tweets_df['party'].unique():
-    party_tweets = tweets_df[tweets_df['party'] == party]
-    top_emotion = party_tweets['primary_emotion'].value_counts().head(2)
-    print(f"  {party}:")
-    for emotion, count in top_emotion.items():
-        percentage = (count / len(party_tweets)) * 100
-        print(f"    {emotion}: {count} ({percentage:.1f}%)")
-
-# Most emotional authors
-print(f"\nMost Emotional Authors (avg emotions per tweet):")
-author_emotion_avg = tweets_df.groupby('Author')['emotion_count'].mean().sort_values(ascending=False)
-for author, avg_emotions in author_emotion_avg.head(5).items():
-    tweet_count = len(tweets_df[tweets_df['Author'] == author])
-    party = tweets_df[tweets_df['Author'] == author]['party'].iloc[0]
-    print(f"  {author} ({party}): {avg_emotions:.2f} emotions/tweet ({tweet_count} tweets)")
-
-# Sample tweets with high emotion scores
-print(f"\nSample Highly Emotional Tweets:")
-high_emotion_tweets = tweets_df[tweets_df['emotion_count'] >= 3].head(3)
-for idx, row in high_emotion_tweets.iterrows():
-    print(f"\n  Author: {row['Author']} ({row['party']})")
-    print(f"  Text: {row['Text'][:100]}...")
-    print(f"  Emotions: {row['detailed_emotions']}")
-
-print(f"\n" + "="*50)
-print("Analysis completed successfully!")
-print(f"Full results saved to: {output_file}")
+# Save the cleaned dataset
+output_path = '/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/cleaned_tweets_with_emotions.csv'
+cleaned_tweets_df.to_csv(output_path, index=False)
+print(f"Cleaned dataset saved to: {output_path}")
