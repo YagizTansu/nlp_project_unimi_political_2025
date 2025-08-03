@@ -61,7 +61,7 @@ model.eval()
 print(f"Loaded fine-tuned model from: {model_path}")
 
 # Prediction function
-def predict_emotions(text, threshold=0.3):
+def predict_emotions(text, threshold=0.1):
     model.eval()
     cleaned_text = clean_text(text)
     if not cleaned_text:
@@ -96,23 +96,23 @@ for model_idx, score in top_5:
     print(f"  {emotion_id}: {emotion_id_to_name[emotion_id]} ({emotion_id_to_name_tr[emotion_id]}) - {score:.4f}")
 
 # Batch test
-sample_texts = [
-    "Bu gerçekten harika bir gün!",
-    "Bugün kendimi çok üzgün hissediyorum.",
-    "Bu haber beni çok kızdırdı!",
-    "Yarınki sınavdan çok korkuyorum.",
-    "Bu yemek gerçekten iğrenç.",
-    "Bu film beni çok şaşırttı.",
-    "Seninle gurur duyuyorum.",
-    "Yaptığım hatadan dolayı kendimi suçlu hissediyorum.",
-    "Ona bu konuda çok kıskançlık duyuyorum.",
-    "Akşamki toplantı beni endişelendiriyor.",
-    "Bu müzik beni huzurlu hissettiriyor.",
-    "Van Bölge Eğitim Ve Araştırma Hastanesi’nde yatan hastaları ziyaret ettik.Bütün hastalara acil şifalar diliyorum."
+sample_political_tweet_texts = [
+    "Bugün çok üzgünüm, ülkemiz için endişeliyim.",
+    "Bu seçim sonuçları beni çok mutlu etti!",
+    "Hükümetin politikalarını eleştiriyorum, daha iyi bir gelecek istiyorum.",
+    "Bu konuda kafam çok karışık, ne yapacağımı bilmiyorum.",
+    "Partim için çok heyecanlıyım, yeni projelerimiz var!",
+    "Bu tweeti yazarken çok kızgınım, adaletsizliklere karşıyım.",
+    "Sevgi dolu bir toplum için çalışmalıyız, birlik olmalıyız.",
+    "Bu konuda çok şaşkınım, beklemediğim bir durumla karşılaştım.",
+    "Ülkemizin geleceği için umutluyum, gençlerimize güveniyorum.",
+    "Bu konuda çok endişeliyim, geleceğimiz tehlikede.",
+    "Bu tweeti yazarken çok mutluyum, güzel bir haber aldım.",
+    "Bu konuda çok kızgınım, adaletsizliklere karşıyım.",
 ]
 
 print("\nTesting model with multiple samples:")
-for text in sample_texts:
+for text in sample_political_tweet_texts:
     pred_ids, probs = predict_emotions(text)
     print(f"\nText: {text}")
     print(f"Predicted emotion IDs: {pred_ids}")

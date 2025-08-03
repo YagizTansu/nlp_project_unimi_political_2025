@@ -6,7 +6,8 @@ from transformers import (
     AutoModelForSequenceClassification, 
     TrainingArguments, 
     Trainer, 
-    EarlyStoppingCallback
+    EarlyStoppingCallback,
+    get_linear_schedule_with_warmup
 )
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, precision_score, recall_score
@@ -141,23 +142,23 @@ def compute_metrics(eval_pred):
 # Training arguments
 training_args = TrainingArguments(
     output_dir='./results',
-    num_train_epochs=5,  # More epochs
-    per_device_train_batch_size=8,  # Smaller batch size
-    per_device_eval_batch_size=8,
+    num_train_epochs=16,  # More epochs
+    per_device_train_batch_size=32,  # Smaller batch size
+    per_device_eval_batch_size=32,
     gradient_accumulation_steps=4,  # Reduced
-    warmup_steps=500,  # More warmup
+    warmup_ratio=0.1,
     weight_decay=0.01,
-    learning_rate=2e-5,  # Lower learning rate
+    learning_rate=3e-5,  # Lower learning rate
     fp16=True,
-    dataloader_num_workers=2,
+    dataloader_num_workers=4,
     dataloader_pin_memory=False,
     remove_unused_columns=False,
     logging_dir='./logs',
     logging_steps=100,
     eval_strategy="steps",
-    eval_steps=200,  # More frequent evaluation
+    eval_steps=100,  # More frequent evaluation
     save_strategy="steps",
-    save_steps=200,
+    save_steps=100,
     load_best_model_at_end=True,
     metric_for_best_model="micro_f1",
     greater_is_better=True,
