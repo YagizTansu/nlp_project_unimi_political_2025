@@ -12,7 +12,7 @@ def combine_tweet_data():
     parties_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/politician_parties.csv')
 
     # Get all CSV files from raw_data folder
-    raw_data_path = '/home/yagiz/Desktop/nlp_project/politican_tweets_raw_data/*.csv'
+    raw_data_path = '/home/yagiz/Desktop/nlp_project/0_politican_tweets_raw_data/*.csv'
     csv_files = glob.glob(raw_data_path)
     
     # Read and combine all CSV files
@@ -33,7 +33,7 @@ def combine_tweet_data():
     full_tweets = full_tweets[columns_order]
     
     # Save the result
-    output_file = '/home/yagiz/Desktop/nlp_project/politican_tweets_combined_data/full_tweets.csv'
+    output_file = '/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/full_tweets.csv'
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     full_tweets.to_csv(output_file, index=False)
     
@@ -72,7 +72,7 @@ def preprocess_tweets(df=None, input_file=None, output_file=None):
     
     # Save preprocessed data
     if output_file is None:
-        output_file = '/home/yagiz/Desktop/nlp_project/politican_tweets_combined_data/preprocessed_tweets.csv'
+        output_file = '/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/preprocessed_tweets.csv'
     
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
