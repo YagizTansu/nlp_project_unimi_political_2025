@@ -3,7 +3,7 @@ import os
 
 def convert_emotion_labels():
     # Read the original dataset
-    df = pd.read_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/Emotion_dataset_train.csv', index_col=0)
+    df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/Emotion_dataset_train.csv', index_col=0)
     
     # Get unique emotions and sort them for consistency
     unique_emotions = sorted(df['Label'].unique())
@@ -18,7 +18,7 @@ def convert_emotion_labels():
     })
     
     # Save emotions mapping
-    emotions_df.to_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/emotions.csv', index=False)
+    emotions_df.to_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/emotions.csv', index=False)
     
     # Convert labels to numerical values
     df['Label_Numeric'] = df['Label'].map(emotion_to_num)
@@ -28,7 +28,7 @@ def convert_emotion_labels():
     df_numeric.columns = ['Sentence', 'Label']
     
     # Save the new dataset
-    df_numeric.to_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/Emotion_dataset_train_numeric.csv', index=True)
+    df_numeric.to_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/Emotion_dataset_train_numeric.csv', index=True)
     
     print("Conversion completed!")
     print(f"Found {len(unique_emotions)} unique emotions:")

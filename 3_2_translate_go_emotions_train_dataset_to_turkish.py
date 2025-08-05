@@ -14,7 +14,7 @@ tokenizer = MarianTokenizer.from_pretrained(model_name)
 model = MarianMTModel.from_pretrained(model_name).to(device)
 
 # CSV dosyasını oku (örnekle)
-df = pd.read_csv("/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/go_emotions_english_train.csv", header=None)
+df = pd.read_csv("/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/go_emotions_english_train.csv", header=None)
 df.columns = ['text', 'col2', 'col3']
 
 # Batch çeviri fonksiyonu
@@ -71,6 +71,6 @@ df['text'] = translate_batch(df['text'].tolist(), batch_size=8)  # İngilizce ye
 print("Çeviri işlemi tamamlandı!")
 
 # Yeni CSV dosyasına kaydet (aynı format, sadece text sütunu Türkçe)
-df.to_csv("/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/go_emotions_turkish_train.csv", index=False, header=False)
+df.to_csv("/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/go_emotions_turkish_train.csv", index=False, header=False)
 
 print("Dosya kaydedildi!")
