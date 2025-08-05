@@ -17,7 +17,7 @@ warnings.filterwarnings('ignore')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load emotion definitions
-emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/emotions_english_turkish.csv')
+emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/emotions_english_turkish.csv')
 valid_emotion_ids = set(emotions_df['emotion_id'].tolist())
 
 # Create emotion mappings for display purposes
@@ -30,7 +30,7 @@ emotion_id_to_index = {eid: idx for idx, eid in enumerate(sorted_emotion_ids)}
 index_to_emotion_id = {idx: eid for idx, eid in enumerate(sorted_emotion_ids)}
 
 # Load training data
-train_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/go_emotions_english_train.csv')
+train_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/go_emotions_english_train.csv')
 label_column = 'labels' if 'labels' in train_df.columns else train_df.columns[1]
 text_column = train_df.columns[0]
 

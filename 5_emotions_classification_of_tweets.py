@@ -39,7 +39,7 @@ def clean_text(text):
     return text.strip()
 
 # Load emotion definitions
-emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/emotions_english_turkish.csv')
+emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/emotions_english_turkish.csv')
 valid_emotion_ids = set(emotions_df['emotion_id'].tolist())
 
 # Create emotion mappings for display purposes
@@ -133,7 +133,7 @@ print("\nTesting completed successfully!")
 print("\nProcessing full_tweets.csv...")
 
 # Load the full tweets dataset
-full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/politican_tweets_combined_data/full_tweets.csv')
+full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/full_tweets.csv')
 print(f"Loaded {len(full_tweets_df)} tweets")
 
 # Function to get top 3 emotion IDs for a text
@@ -196,6 +196,6 @@ for i in range(0, len(cleaned_tweets_df), batch_size):
 cleaned_tweets_df['top3_emotion_ids'] = top3_emotions
 
 # Save the cleaned dataset
-output_path = '/home/yagiz/Desktop/nlp_project/politican_tweets_combined_data/cleaned_tweets_with_emotions.csv'
+output_path = '/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/cleaned_tweets_with_emotions.csv'
 cleaned_tweets_df.to_csv(output_path, index=False)
 print(f"Cleaned dataset saved to: {output_path}")
