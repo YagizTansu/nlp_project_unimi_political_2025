@@ -17,7 +17,7 @@ emotion_id_to_name_tr = dict(zip(emotions_df['emotion_id'], emotions_df['emotion
 
 # Load cleaned tweets dataset
 print("Loading cleaned tweets dataset...")
-cleaned_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/cleaned_tweets_with_emotions.csv')
+cleaned_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/cleaned_tweets_with_emotions.csv')
 print(f"Loaded {len(cleaned_tweets_df)} tweets")
 print(f"Columns: {list(cleaned_tweets_df.columns)}")
 
