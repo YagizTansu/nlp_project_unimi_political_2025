@@ -4,8 +4,8 @@ import pandas as pd
 from twikit import Client
 import os
 
-USERNAME = "nlpprojects07"  # CHANGE THIS TO YOUR USERNAME
-EMAIL = "nlpprojects07@gmail.com" # CHANGE THIS TO YOUR EMAIL
+USERNAME = "nlpproject58"  # CHANGE THIS TO YOUR USERNAME
+EMAIL = "nlpproject58@gmail.com" # CHANGE THIS TO YOUR EMAIL
 PASSWORD = "12345678Yt," # CHANGE THIS TO YOUR PASSWORD
 
 # Initialize client
@@ -59,9 +59,9 @@ async def get_user_tweets(username, limit=10):
         return [], None
 
     print(f"Fetching tweets from '{username}' user...")
-    
-    # Set January 1, 2023 date
-    start_date = datetime(2023, 1, 1, tzinfo=datetime.now().astimezone().tzinfo)
+
+    # Set January 1, 2021 date
+    start_date = datetime(2021, 1, 1, tzinfo=datetime.now().astimezone().tzinfo)
     
     all_tweets = []
     tweets = await user.get_tweets(count=10, tweet_type='Tweets')
@@ -70,7 +70,7 @@ async def get_user_tweets(username, limit=10):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Create raw_data directory if it doesn't exist
-    raw_data_dir = "politican_tweets_raw_data"
+    raw_data_dir = "politican_tweets_raw_data_2"
     if not os.path.exists(raw_data_dir):
         os.makedirs(raw_data_dir)
     
@@ -120,9 +120,9 @@ async def get_user_tweets(username, limit=10):
                 print(f"Error fetching more tweets: {e}")
                 
                 if "429" in str(e) or "Rate limit exceeded" in str(e):
-                    wait_time = 180  # 3 minutes in seconds
-                    print(f"Rate limit exceeded. Waiting {wait_time} seconds (3 minutes) before retry...")
-                    
+                    wait_time = 950  # 16 minutes  in seconds
+                    print(f"Rate limit exceeded. Waiting {wait_time} seconds (16 minutes and 15 seconds) before retry...")
+
                     # Countdown timer
                     for remaining in range(wait_time, 0, -1):
                         minutes = remaining // 60
@@ -219,7 +219,7 @@ async def main():
     )
     
     # Process all politicians from CSV
-    csv_file_path = "politician_parites.csv"
-    await process_all_politicians(csv_file_path, tweet_limit=200)
+    csv_file_path = "politician_parties.csv"
+    await process_all_politicians(csv_file_path, tweet_limit=800)
 
 asyncio.run(main())

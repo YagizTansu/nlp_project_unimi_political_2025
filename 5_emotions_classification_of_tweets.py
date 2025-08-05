@@ -196,6 +196,6 @@ for i in range(0, len(cleaned_tweets_df), batch_size):
 cleaned_tweets_df['top3_emotion_ids'] = top3_emotions
 
 # Save the cleaned dataset
-output_path = '/home/yagiz/Desktop/nlp_project/turkish_emotions_datasets/cleaned_tweets_with_emotions.csv'
+output_path = '/home/yagiz/Desktop/nlp_project/politican_tweets_combined_data/cleaned_tweets_with_emotions.csv'
 cleaned_tweets_df.to_csv(output_path, index=False)
 print(f"Cleaned dataset saved to: {output_path}")
