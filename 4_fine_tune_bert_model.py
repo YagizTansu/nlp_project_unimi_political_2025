@@ -1,195 +1,252 @@
 import pandas as pd
 import numpy as np
 import torch
+from torch.utils.data import Dataset, DataLoader
 from transformers import (
     AutoTokenizer, 
     AutoModelForSequenceClassification, 
     TrainingArguments, 
-    Trainer, 
-    EarlyStoppingCallback,
-    get_linear_schedule_with_warmup
+    Trainer,
+    DataCollatorWithPadding
 )
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+import os
 import warnings
 warnings.filterwarnings('ignore')
+from sklearn.metrics import f1_score
+from sklearn.utils.class_weight import compute_class_weight
+from transformers import EarlyStoppingCallback
 
+
+# Check if CUDA is available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
 
-# Load emotion definitions
-emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/emotions_english_turkish.csv')
-valid_emotion_ids = set(emotions_df['emotion_id'].tolist())
-
-# Create emotion mappings for display purposes
-emotion_id_to_name = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_en']))
-emotion_id_to_name_tr = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_tr']))
-
-# FIXED: Create proper mapping between emotion IDs and model indices
-sorted_emotion_ids = sorted(list(valid_emotion_ids))
-emotion_id_to_index = {eid: idx for idx, eid in enumerate(sorted_emotion_ids)}
-index_to_emotion_id = {idx: eid for idx, eid in enumerate(sorted_emotion_ids)}
-
-# Load training data
-train_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/go_emotions_english_train.csv')
-label_column = 'labels' if 'labels' in train_df.columns else train_df.columns[1]
-text_column = train_df.columns[0]
-
-def convert_labels(labels_str):
-    if pd.isna(labels_str):
-        return []
-    try:
-        if isinstance(labels_str, (int, float)):
-            emotion_id = int(labels_str)
-            return [emotion_id_to_index[emotion_id]] if emotion_id in emotion_id_to_index else []
-        else:
-            emotion_ids = [int(x.strip()) for x in str(labels_str).split(',')]
-            return [emotion_id_to_index[eid] for eid in emotion_ids if eid in emotion_id_to_index]
-    except:
-        return []
-
-train_df['label_list'] = train_df[label_column].apply(convert_labels)
-
-# *** BURASI EKLENDİ: Kaldırılan duyguları içeren tüm örnekleri çıkarıyoruz ***
-
-def has_only_valid_emotions(label_list, valid_ids):
-    return all([eid in valid_ids for eid in label_list])
-
-train_df = train_df[train_df['label_list'].apply(lambda x: len(x) > 0 and has_only_valid_emotions(x, valid_emotion_ids))].copy()
-
-# Tokenizer and model
-model_name = "xlm-roberta-base"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-num_labels = len(valid_emotion_ids)
-
-model = AutoModelForSequenceClassification.from_pretrained(
-    model_name,
-    num_labels=num_labels,
-    problem_type="multi_label_classification",
-    id2label=index_to_emotion_id,
-    label2id=emotion_id_to_index
-)
-model.gradient_checkpointing_enable()
-
-# Data split
-train_texts, val_texts, train_labels, val_labels = train_test_split(
-    train_df[text_column].tolist(),
-    train_df['label_list'].tolist(),
-    test_size=0.2,
-    random_state=42
-)
-
-def create_multi_hot_labels(label_lists, num_classes):
-    labels = np.zeros((len(label_lists), num_classes), dtype=np.float32)
-    for i, label_list in enumerate(label_lists):
-        for label_id in label_list:
-            if label_id < num_classes:
-                labels[i][label_id] = 1.0
-    return labels
-
-def tokenize_function(texts):
-    return tokenizer(texts, padding=True, truncation=True, max_length=128, return_tensors="pt")
-
-train_encodings = tokenize_function(train_texts)
-val_encodings = tokenize_function(val_texts)
-
-train_labels_multi_hot = create_multi_hot_labels(train_labels, num_labels)
-val_labels_multi_hot = create_multi_hot_labels(val_labels, num_labels)
-
-# Dataset class
-class EmotionDataset(torch.utils.data.Dataset):
-    def __init__(self, encodings, labels):
-        self.encodings = encodings
+class EmotionDataset(Dataset):
+    def __init__(self, texts, labels, tokenizer, max_length=512):
+        self.texts = texts
         self.labels = labels
-    
-    def __getitem__(self, idx):
-        item = {key: val[idx] for key, val in self.encodings.items()}
-        item['labels'] = torch.tensor(self.labels[idx], dtype=torch.float)
-        return item
+        self.tokenizer = tokenizer
+        self.max_length = max_length
     
     def __len__(self):
-        return len(self.labels)
-
-train_dataset = EmotionDataset(train_encodings, train_labels_multi_hot)
-val_dataset = EmotionDataset(val_encodings, val_labels_multi_hot)
-
-# Metrics
-def compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    predictions = torch.sigmoid(torch.tensor(predictions)).numpy()
-    predictions = (predictions > 0.3).astype(int)  # Lower threshold
-
-    # Handle case where no predictions are made
-    if predictions.sum() == 0:
+        return len(self.texts)
+    
+    def __getitem__(self, idx):
+        text = str(self.texts[idx])
+        label = self.labels[idx]
+        
+        encoding = self.tokenizer(
+            text,
+            truncation=True,
+            padding='max_length',
+            max_length=self.max_length,
+            return_tensors='pt'
+        )
+        
         return {
-            'micro_f1': 0.0,
-            'macro_f1': 0.0,
-            'precision': 0.0,
-            'recall': 0.0
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'labels': torch.tensor(label, dtype=torch.long)
         }
 
-    micro_f1 = f1_score(labels, predictions, average='micro', zero_division=0)
-    macro_f1 = f1_score(labels, predictions, average='macro', zero_division=0)
-    precision = precision_score(labels, predictions, average='micro', zero_division=0)
-    recall = recall_score(labels, predictions, average='micro', zero_division=0)
-
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions, axis=1)
+    accuracy = accuracy_score(labels, predictions)
+    micro_f1 = f1_score(labels, predictions, average='micro')
     return {
-        'micro_f1': micro_f1,
-        'macro_f1': macro_f1,
-        'precision': precision,
-        'recall': recall
+        'accuracy': accuracy,
+        'micro_f1': micro_f1
     }
 
-# Training arguments
-training_args = TrainingArguments(
-    output_dir='./results',
-    num_train_epochs=16,  # More epochs
-    per_device_train_batch_size=32,  # Smaller batch size
-    per_device_eval_batch_size=32,
-    gradient_accumulation_steps=4,  # Reduced
-    warmup_ratio=0.1,
-    weight_decay=0.01,
-    learning_rate=7e-5,  # Lower learning rate
-    fp16=True,
-    dataloader_num_workers=4,
-    dataloader_pin_memory=False,
-    remove_unused_columns=False,
-    logging_dir='./logs',
-    logging_steps=100,
-    eval_strategy="steps",
-    eval_steps=100,  # More frequent evaluation
-    save_strategy="steps",
-    save_steps=100,
-    load_best_model_at_end=True,
-    metric_for_best_model="micro_f1",
-    greater_is_better=True,
-    report_to=None,
-    save_total_limit=3,
-    eval_accumulation_steps=2
-)
+class WeightedTrainer(Trainer):
+    def __init__(self, class_weights=None, **kwargs):
+        super().__init__(**kwargs)
+        self.class_weights = class_weights
+    
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        labels = inputs.get("labels")
+        outputs = model(**inputs)
+        logits = outputs.get("logits")
+        
+        if self.class_weights is not None:
+            loss_fct = torch.nn.CrossEntropyLoss(weight=self.class_weights)
+            loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
+        else:
+            loss = outputs.loss
+        
+        return (loss, outputs) if return_outputs else loss
 
-# Trainer
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=val_dataset,
-    compute_metrics=compute_metrics,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
-)
+def main():
+    # Model configuration
+    model_name = "dbmdz/bert-base-turkish-cased" #savasy/bert-base-turkish-sentiment-cased , dbmdz/bert-base-turkish-128k-cased
+    output_dir = "./fine_tuned_turkish_emotions"
+    
+    # Load data
+    print("Loading data...")
+    df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/tremo_data.csv')
+    
+    # Data preprocessing
+    print("Preprocessing data...")
+    # Remove rows with missing text or emotion
+    df = df.dropna(subset=['text', 'emotion'])
+    
+    # Remove empty or whitespace-only texts
+    df = df[df['text'].str.strip().str.len() > 0]
+    
+    # Filter out 'Ambigious' emotions for cleaner training
+    df = df[df['emotion'] != 'Ambigious']
+    
+    print(f"Dataset shape after cleaning: {df.shape}")
+    print(f"Emotion distribution:\n{df['emotion'].value_counts()}")
+    
+    # Encode labels
+    label_encoder = LabelEncoder()
+    df['label'] = label_encoder.fit_transform(df['emotion'])
+    
+    # Get unique labels and create label mappings
+    emotion_labels = label_encoder.classes_
+    num_labels = len(emotion_labels)
+    
+    print(f"Number of emotion classes: {num_labels}")
+    print(f"Emotion labels: {emotion_labels}")
+    
+    # Create label mappings
+    id2label = {i: label for i, label in enumerate(emotion_labels)}
+    label2id = {label: i for i, label in enumerate(emotion_labels)}
+    
+    # Calculate class weights
+    print("Calculating class weights...")
+    class_weights = compute_class_weight(
+        'balanced',
+        classes=np.unique(df['label']),
+        y=df['label']
+    )
+    class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(device)
+    print(f"Class weights: {dict(zip(emotion_labels, class_weights))}")
+    
+    # Split data
+    print("Splitting data...")
+    texts = df['text'].tolist()
+    labels = df['label'].tolist()
+    
+    train_texts, val_texts, train_labels, val_labels = train_test_split(
+        texts, labels, test_size=0.2, random_state=42, stratify=labels
+    )
+    
+    print(f"Training samples: {len(train_texts)}")
+    print(f"Validation samples: {len(val_texts)}")
+    
+    # Initialize tokenizer and model
+    print("Loading model and tokenizer...")
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_name,
+        num_labels=num_labels,
+        id2label=id2label,
+        label2id=label2id
+    )
+    
+    # Create datasets
+    print("Creating datasets...")
+    train_dataset = EmotionDataset(train_texts, train_labels, tokenizer)
+    val_dataset = EmotionDataset(val_texts, val_labels, tokenizer)
+    
+    # Data collator
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    
+    # Training arguments
+    training_args = TrainingArguments(
+        output_dir='./chekpoints',
+        num_train_epochs=12,  # More epochs
+        per_device_train_batch_size=16,  # Smaller batch size
+        per_device_eval_batch_size=16,
+        gradient_accumulation_steps=16,  # Reduced
+        warmup_ratio=0.15,
+        weight_decay=0.02,
+        learning_rate=2e-5,  # Lower learning rate
+        fp16=True,
+        dataloader_num_workers=4,
+        dataloader_pin_memory=False,
+        remove_unused_columns=False,
+        logging_dir='./logs',
+        logging_steps=100,
+        eval_strategy="steps",
+        eval_steps=100,  # More frequent evaluation
+        save_strategy="steps",
+        save_steps=100,
+        load_best_model_at_end=True,
+        metric_for_best_model="micro_f1",
+        greater_is_better=True,
+        report_to=None,
+        save_total_limit=3,
+        eval_accumulation_steps=2
+    )
+    
+    # Initialize trainer
+    print("Initializing trainer...")
+    trainer = WeightedTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics,
+        class_weights=class_weights_tensor,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
 
-# Train
-print("Starting training...")
-trainer.train()
+    )
+    
+    # Train the model
+    print("Starting training...")
+    trainer.train()
+    
+    # Evaluate the model
+    print("Evaluating model...")
+    eval_results = trainer.evaluate()
+    print(f"Evaluation results: {eval_results}")
+    
+    # Get predictions for detailed evaluation
+    print("Getting predictions for detailed evaluation...")
+    pred_output = trainer.predict(val_dataset)
+    preds = np.argmax(pred_output.predictions, axis=1)
+    
+    # Classification Report
+    print("\nClassification Report:")
+    print(classification_report(val_labels, preds, target_names=emotion_labels))
+    
+    # Confusion Matrix
+    print("Generating confusion matrix...")
+    cm = confusion_matrix(val_labels, preds)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=emotion_labels)
+    disp.plot(xticks_rotation=45)
+    plt.tight_layout()
+    plt.show()
+    
+    # Save the model
+    print(f"Saving model to {output_dir}...")
+    trainer.save_model(output_dir)
+    tokenizer.save_pretrained(output_dir)
+    
+    # Save label mappings
+    import json
+    mappings = {
+        'id2label': id2label,
+        'label2id': label2id,
+        'emotion_labels': emotion_labels.tolist()
+    }
+    
+    with open(f'{output_dir}/label_mappings.json', 'w', encoding='utf-8') as f:
+        json.dump(mappings, f, ensure_ascii=False, indent=2)
+    
+    print("Training completed!")
+    print(f"Model saved to: {output_dir}")
 
-# Evaluate
-print("Final evaluation...")
-eval_results = trainer.evaluate()
-print("Evaluation Results:")
-for key, value in eval_results.items():
-    print(f"  {key}: {value:.4f}")
-
-# Save model
-output_dir = "./fine_tuned_turkish_emotions"
-model.save_pretrained(output_dir)
-tokenizer.save_pretrained(output_dir)
-print(f"Model and tokenizer saved to: {output_dir}")
+if __name__ == "__main__":
+    main()
