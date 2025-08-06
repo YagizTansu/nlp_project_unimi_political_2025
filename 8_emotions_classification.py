@@ -144,6 +144,7 @@ sample_political_tweet_texts = [
     "Bu konuda çok endişeliyim, geleceğimiz tehlikede.",
     "Bu tweeti yazarken çok mutluyum, güzel bir haber aldım.",
     "Bu konuda çok kızgınım, adaletsizliklere karşıyım.",
+    "Cezaevinden yeni çıkan eski Eşbaşkanımız Fikret Doğanı Vanda evinde ziyaret ettik. Tekrar geçmiş olsun."
 ]
 
 print("\nTesting model with multiple samples:")
