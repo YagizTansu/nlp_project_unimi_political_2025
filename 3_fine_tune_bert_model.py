@@ -19,7 +19,7 @@ warnings.filterwarnings('ignore')
 from sklearn.metrics import f1_score
 from sklearn.utils.class_weight import compute_class_weight
 from transformers import EarlyStoppingCallback
-
+import sys
 
 # Check if CUDA is available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -81,10 +81,11 @@ class WeightedTrainer(Trainer):
         
         return (loss, outputs) if return_outputs else loss
 
-def main():
+def main(model_name="dbmdz/bert-base-turkish-cased"):
     # Model configuration
-    model_name = "dbmdz/bert-base-turkish-cased" #savasy/bert-base-turkish-sentiment-cased , dbmdz/bert-base-turkish-128k-cased
     output_dir = "./fine_tuned_turkish_emotions"
+    
+    print(f"Using model: {model_name}")
     
     # Load data
     print("Loading data...")
@@ -249,4 +250,12 @@ def main():
     print(f"Model saved to: {output_dir}")
 
 if __name__ == "__main__":
-    main()
+    # Get model name from command line argument or use default
+    if len(sys.argv) > 1:
+        model_name = sys.argv[1]
+        print(f"Using custom model: {model_name}")
+    else:
+        model_name = "dbmdz/bert-base-turkish-cased"
+        print(f"Using default model: {model_name}")
+    
+    main(model_name)

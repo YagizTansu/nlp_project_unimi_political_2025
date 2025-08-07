@@ -14,7 +14,7 @@ plt.rcParams['font.family'] = ['DejaVu Sans']
 plt.rcParams['figure.figsize'] = (12, 8)
 
 # Create output directory for plots
-plots_dir = '/home/yagiz/Desktop/nlp_project/sentiment_plots'
+plots_dir = '/home/yagiz/Desktop/nlp_project/4_sentiment_plots'
 os.makedirs(plots_dir, exist_ok=True)
 
 # Load emotion definitions
@@ -43,13 +43,16 @@ def extract_emotions(emotions_series):
                 continue
     return all_emotions
 
-# Overall emotion analysis
-all_emotions = extract_emotions(cleaned_tweets_df['top3_emotions'])
-emotion_counter = Counter(all_emotions)
+# Overall emotion analysis - using both emotion columns
+all_top3_emotions = extract_emotions(cleaned_tweets_df['top3_emotions'])
+all_predicted_emotions = extract_emotions(cleaned_tweets_df['predicted_emotions'])
 
-# Create overall emotion distribution plot
+top3_emotion_counter = Counter(all_top3_emotions)
+predicted_emotion_counter = Counter(all_predicted_emotions)
+
+# Create overall emotion distribution plot for both emotion types
 plt.figure(figsize=(14, 8))
-top_emotions = dict(emotion_counter.most_common(15))
+top_emotions = dict(predicted_emotion_counter.most_common(15))
 emotions_df = pd.DataFrame({'Emotion': list(top_emotions.keys()), 
                            'Count': list(top_emotions.values())})
 emotions_df['Turkish'] = emotions_df['Emotion'].apply(
@@ -58,11 +61,11 @@ emotions_df['Label'] = emotions_df['Emotion'] + '\n(' + emotions_df['Turkish'] +
 emotions_df = emotions_df.sort_values('Count', ascending=False)
 
 sns.barplot(x='Count', y='Label', data=emotions_df, palette='viridis')
-plt.title('Top 15 Emotions in All Tweets', fontsize=16)
+plt.title('Top 15 High-Confidence Emotions (>20%) in All Tweets', fontsize=16)
 plt.xlabel('Count', fontsize=12)
 plt.ylabel('Emotion', fontsize=12)
 plt.tight_layout()
-plt.savefig(f'{plots_dir}/overall_emotion_distribution.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'{plots_dir}/overall_high_confidence_emotion_distribution.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # Political side distribution
@@ -94,12 +97,12 @@ plt.tight_layout()
 plt.savefig(f'{plots_dir}/party_distribution.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Emotion analysis by political side
+# Emotion analysis by political side - using predicted_emotions (high confidence)
 left_tweets = cleaned_tweets_df[cleaned_tweets_df['political_side'] == 'left']
 right_tweets = cleaned_tweets_df[cleaned_tweets_df['political_side'] == 'right']
 
-left_emotions = extract_emotions(left_tweets['top3_emotions'])
-right_emotions = extract_emotions(right_tweets['top3_emotions'])
+left_emotions = extract_emotions(left_tweets['predicted_emotions'])
+right_emotions = extract_emotions(right_tweets['predicted_emotions'])
 
 left_emotion_counter = Counter(left_emotions)
 right_emotion_counter = Counter(right_emotions)
@@ -138,7 +141,7 @@ plt.barh(top_comparison['Label'], top_comparison['left_pct'], color='blue', alph
 plt.barh(top_comparison['Label'], -top_comparison['right_pct'], color='red', alpha=0.7, label='Right')
 plt.axvline(x=0, color='black', linestyle='-')
 plt.xlabel('Percentage (%)', fontsize=12)
-plt.title('Top 15 Emotions with Biggest Differences Between Left and Right', fontsize=16)
+plt.title('Top 15 High-Confidence Emotions with Biggest Differences Between Left and Right', fontsize=16)
 plt.legend()
 
 # Add percentage labels
@@ -147,10 +150,10 @@ for i, row in enumerate(top_comparison.itertuples()):
     plt.text(-row.right_pct-3.5, i, f"{row.right_pct:.1f}%", va='center')
 
 plt.tight_layout()
-plt.savefig(f'{plots_dir}/left_vs_right_emotions.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'{plots_dir}/left_vs_right_high_confidence_emotions.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Emotion analysis by party
+# Emotion analysis by party - using predicted_emotions (high confidence)
 plt.figure(figsize=(16, 12))
 
 # Filter out NaN values in party
@@ -159,7 +162,7 @@ valid_parties = cleaned_tweets_df[cleaned_tweets_df['party'].notna()]
 # Get top 8 emotions across all parties
 all_party_emotions = []
 for party in valid_parties['party'].unique():
-    party_emotions = extract_emotions(cleaned_tweets_df[cleaned_tweets_df['party'] == party]['top3_emotions'])
+    party_emotions = extract_emotions(cleaned_tweets_df[cleaned_tweets_df['party'] == party]['predicted_emotions'])
     all_party_emotions.extend(party_emotions)
 
 top_emotions_overall = [e for e, _ in Counter(all_party_emotions).most_common(8)]
@@ -168,7 +171,7 @@ top_emotions_overall = [e for e, _ in Counter(all_party_emotions).most_common(8)
 party_emotion_data = []
 for party in valid_parties['party'].unique():
     party_tweets = cleaned_tweets_df[cleaned_tweets_df['party'] == party]
-    party_emotions = extract_emotions(party_tweets['top3_emotions'])
+    party_emotions = extract_emotions(party_tweets['predicted_emotions'])
     party_emotion_counter = Counter(party_emotions)
     
     for emotion in top_emotions_overall:
@@ -185,21 +188,21 @@ emotion_heatmap_pivot = emotion_heatmap_df.pivot(index='Party', columns='Emotion
 
 # Create heatmap
 sns.heatmap(emotion_heatmap_pivot, annot=True, fmt='.1f', cmap='YlGnBu', linewidths=0.5)
-plt.title('Emotion Distribution by Political Party (Percentage)', fontsize=16)
+plt.title('High-Confidence Emotion Distribution by Political Party (Percentage)', fontsize=16)
 plt.xlabel('Emotion', fontsize=12)
 plt.ylabel('Party', fontsize=12)
 plt.xticks(rotation=45, ha='right')
 plt.tight_layout()
-plt.savefig(f'{plots_dir}/party_emotion_heatmap.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'{plots_dir}/party_high_confidence_emotion_heatmap.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Emotion analysis for top authors
+# Emotion analysis for top authors - using predicted_emotions (high confidence)
 top_5_authors = author_counts.index[:5]
 author_emotion_data = []
 
 for author in top_5_authors:
     author_tweets = cleaned_tweets_df[cleaned_tweets_df['Author'] == author]
-    author_emotions = extract_emotions(author_tweets['top3_emotions'])
+    author_emotions = extract_emotions(author_tweets['predicted_emotions'])
     author_emotion_counter = Counter(author_emotions)
     top_8_emotions = [e for e, _ in author_emotion_counter.most_common(8)]
     
@@ -233,12 +236,12 @@ for author in top_5_authors:
     plt.xticks(angles[:-1], emotions, size=10)
     plt.yticks(np.arange(0, max(percentages)+10, 10), size=8)
     
-    plt.title(f'Emotion Profile for {author}\n({party} - {political_side})', size=15, y=1.1)
+    plt.title(f'High-Confidence Emotion Profile for {author}\n({party} - {political_side})', size=15, y=1.1)
     plt.tight_layout()
-    plt.savefig(f'{plots_dir}/author_{author.replace(" ", "_")}_emotions.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{plots_dir}/author_{author.replace(" ", "_")}_high_confidence_emotions.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-# Create a dashboard with subplots
+# Create a dashboard with subplots - using predicted_emotions (high confidence)
 plt.figure(figsize=(20, 15))
 gs = GridSpec(3, 2, figure=plt.gcf())
 
@@ -254,13 +257,13 @@ for i, v in enumerate(political_side_counts.values):
 
 # Overall emotion distribution
 ax2 = plt.subplot(gs[0, 1])
-top_emotions = dict(emotion_counter.most_common(10))
+top_emotions = dict(predicted_emotion_counter.most_common(10))
 emotions_df = pd.DataFrame({'Emotion': list(top_emotions.keys()), 
                            'Count': list(top_emotions.values())})
 emotions_df['Label'] = emotions_df['Emotion']
 emotions_df = emotions_df.sort_values('Count', ascending=True)
 sns.barplot(x='Count', y='Label', data=emotions_df, palette='viridis', ax=ax2)
-ax2.set_title('Top 10 Emotions in All Tweets', fontsize=14)
+ax2.set_title('Top 10 High-Confidence Emotions in All Tweets', fontsize=14)
 ax2.set_xlabel('Count', fontsize=10)
 ax2.set_ylabel('Emotion', fontsize=10)
 
@@ -272,22 +275,22 @@ ax3.barh(top_8_comparison['Label'], top_8_comparison['left_pct'], color='blue', 
 ax3.barh(top_8_comparison['Label'], -top_8_comparison['right_pct'], color='red', alpha=0.7, label='Right')
 ax3.axvline(x=0, color='black', linestyle='-')
 ax3.set_xlabel('Percentage (%)', fontsize=10)
-ax3.set_title('Emotions with Biggest Differences Between Left and Right', fontsize=14)
+ax3.set_title('High-Confidence Emotions with Biggest Differences Between Left and Right', fontsize=14)
 ax3.legend()
 
 # Party emotion heatmap
 ax4 = plt.subplot(gs[2, :])
 sns.heatmap(emotion_heatmap_pivot.iloc[:, :6], annot=True, fmt='.1f', cmap='YlGnBu', linewidths=0.5, ax=ax4)
-ax4.set_title('Emotion Distribution by Political Party (Percentage)', fontsize=14)
+ax4.set_title('High-Confidence Emotion Distribution by Political Party (Percentage)', fontsize=14)
 ax4.set_xlabel('Emotion', fontsize=10)
 ax4.set_ylabel('Party', fontsize=10)
 plt.xticks(rotation=45, ha='right')
 
 plt.tight_layout()
-plt.savefig(f'{plots_dir}/sentiment_analysis_dashboard.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'{plots_dir}/high_confidence_sentiment_analysis_dashboard.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Create party comparison bar charts
+# Create party comparison bar charts for high-confidence emotions
 top_parties = party_counts.head(6).index
 
 plt.figure(figsize=(18, 12))
@@ -297,7 +300,7 @@ for i, emotion in enumerate(top_emotions_overall[:6]):
     
     for party in top_parties:
         party_tweets = cleaned_tweets_df[cleaned_tweets_df['party'] == party]
-        party_emotions = extract_emotions(party_tweets['top3_emotions'])
+        party_emotions = extract_emotions(party_tweets['predicted_emotions'])
         party_emotion_counter = Counter(party_emotions)
         emotion_count = party_emotion_counter.get(emotion, 0)
         percentage = (emotion_count / len(party_emotions)) * 100 if party_emotions else 0
@@ -308,11 +311,42 @@ for i, emotion in enumerate(top_emotions_overall[:6]):
     
     emotion_party_df = pd.DataFrame(emotion_by_party)
     sns.barplot(x='Party', y='Percentage', data=emotion_party_df)
-    plt.title(f'"{emotion}" by Party', fontsize=12)
+    plt.title(f'"{emotion}" by Party (High-Confidence)', fontsize=12)
     plt.xlabel('Party', fontsize=10)
     plt.ylabel('Percentage (%)', fontsize=10)
     plt.xticks(rotation=45, ha='right')
     
 plt.tight_layout()
-plt.savefig(f'{plots_dir}/emotion_by_party_comparison.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'{plots_dir}/high_confidence_emotion_by_party_comparison.png', dpi=300, bbox_inches='tight')
+plt.close()
+
+# Add comparison between high-confidence and all emotions
+plt.figure(figsize=(16, 10))
+emotions_to_compare = [e for e, _ in predicted_emotion_counter.most_common(10)]
+
+comparison_df = []
+for emotion in emotions_to_compare:
+    high_conf_count = predicted_emotion_counter.get(emotion, 0)
+    all_count = top3_emotion_counter.get(emotion, 0)
+    
+    high_conf_pct = (high_conf_count / len(all_predicted_emotions)) * 100 if all_predicted_emotions else 0
+    all_pct = (all_count / len(all_top3_emotions)) * 100 if all_top3_emotions else 0
+    
+    comparison_df.append({
+        'Emotion': emotion,
+        'High Confidence': high_conf_pct,
+        'All Emotions': all_pct
+    })
+
+comparison_df = pd.DataFrame(comparison_df)
+comparison_melted = pd.melt(comparison_df, id_vars=['Emotion'], var_name='Source', value_name='Percentage')
+
+sns.barplot(x='Emotion', y='Percentage', hue='Source', data=comparison_melted)
+plt.title('Comparison Between High-Confidence Emotions and All Emotions', fontsize=16)
+plt.xlabel('Emotion', fontsize=12)
+plt.ylabel('Percentage (%)', fontsize=12)
+plt.xticks(rotation=45, ha='right')
+plt.legend(title='Source')
+plt.tight_layout()
+plt.savefig(f'{plots_dir}/high_confidence_vs_all_emotions_comparison.png', dpi=300, bbox_inches='tight')
 plt.close()

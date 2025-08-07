@@ -3,10 +3,15 @@ from datetime import datetime
 import pandas as pd
 from twikit import Client
 import os
+import sys
+from dotenv import load_dotenv
 
-USERNAME = "nlpproject58"  # CHANGE THIS TO YOUR USERNAME
-EMAIL = "nlpproject58@gmail.com" # CHANGE THIS TO YOUR EMAIL
-PASSWORD = "12345678Yt," # CHANGE THIS TO YOUR PASSWORD
+# Load environment variables from .env file
+load_dotenv()
+
+USERNAME = os.getenv("USERNAME")
+EMAIL = os.getenv("EMAIL")
+PASSWORD = os.getenv("PASSWORD")
 
 # Initialize client
 client = Client('en-US')
@@ -31,11 +36,11 @@ def save_tweets_to_csv(tweets, username, filename=None, append=False):
             'ID': tweet.id,
             'Author': tweet.user.screen_name,
             'Text': full_text,  # Use full text instead of truncated text
-            'Date': tweet.created_at,
-            'Like_Count': tweet.favorite_count,
-            'Retweet_Count': tweet.retweet_count,
-            'Reply_Count': getattr(tweet, 'reply_count', 0),
-            'URL': f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
+            'Date': tweet.created_at
+            # 'Like_Count': tweet.favorite_count,
+            # 'Retweet_Count': tweet.retweet_count,
+            # 'Reply_Count': getattr(tweet, 'reply_count', 0),
+            # 'URL': f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
         })
     
     # Create DataFrame and save to CSV
@@ -88,6 +93,14 @@ async def get_user_tweets(username, limit=10):
                 print(f"Found tweet older than January 1, 2024. Stopping search.")
                 tweets = None  # End the loop
                 break
+            
+            # Skip retweets
+            if tweet.text.startswith("RT @"):
+                continue  # Retweet ise atla
+            
+            # Skip replies
+            if hasattr(tweet, 'in_reply_to_status_id') and tweet.in_reply_to_status_id is not None:
+                continue  # Cevap (reply) ise atla
             
             batch_tweets.append(tweet)
             if len(all_tweets) + len(batch_tweets) >= limit:
@@ -157,8 +170,6 @@ async def get_user_tweets(username, limit=10):
             print(f"ID: {tweet.id}")
             print(f"Text: {tweet.text[:150]}...") # Show first 150 characters of tweet
             print(f"Date: {tweet.created_at}")
-            print(f"Like Count: {tweet.favorite_count}")
-            print(f"Retweet Count: {tweet.retweet_count}")
             print("-" * 20)
         
         return all_tweets, csv_filename
@@ -218,8 +229,27 @@ async def main():
         cookies_file='cookies.json'
     )
     
+    # Get CSV file path from command line argument or use default
+    if len(sys.argv) > 1:
+        csv_file_path = sys.argv[1]
+        print(f"Using CSV file: {csv_file_path}")
+    else:
+        csv_file_path = "politicians.csv"
+        print(f"Using default CSV file: {csv_file_path}")
+    
+    # Get tweet limit from command line argument or use default
+    if len(sys.argv) > 2:
+        try:
+            tweet_limit = int(sys.argv[2])
+            print(f"Using tweet limit: {tweet_limit}")
+        except ValueError:
+            print(f"Invalid tweet limit '{sys.argv[2]}', using default: 100")
+            tweet_limit = 100
+    else:
+        tweet_limit = 100
+        print(f"Using default tweet limit: {tweet_limit}")
+    
     # Process all politicians from CSV
-    csv_file_path = "politician_parties.csv"
-    await process_all_politicians(csv_file_path, tweet_limit=800)
+    await process_all_politicians(csv_file_path, tweet_limit=tweet_limit)
 
 asyncio.run(main())
