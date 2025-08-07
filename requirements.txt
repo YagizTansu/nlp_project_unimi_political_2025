@@ -1,9 +1,33 @@
-pandas==2.0.3
-googletrans==4.0.0rc1
-deep-translator==1.11.4
-pandas>=1.3.0
+# Core data processing
+pandas>=2.0.3
 numpy>=1.21.0
+
+# Machine Learning
 scikit-learn>=1.0.0
-googletrans==4.0.0rc1
+torch>=2.0.0
+
+# Transformers and NLP
+transformers>=4.30.0
+tokenizers>=0.13.0
 datasets>=2.0.0
 accelerate>=0.20.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Web scraping and Twitter
+twikit>=1.5.0
+python-dotenv>=1.0.0
+
+# Translation (optional)
+googletrans==4.0.0rc1
+deep-translator>=1.11.4
+
+# Progress bars
+tqdm>=4.64.0
+
+# GPU support (optional - uncomment if using CUDA)
+# torch>=2.0.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+# torchvision>=0.15.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+# torchaudio>=2.0.0+cu118 --index-url https://download.pytorch.org/whl/cu118

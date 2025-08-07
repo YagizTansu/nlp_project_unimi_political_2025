@@ -152,15 +152,10 @@ PASSWORD=your_password
 
 2. Install required packages:
 ```bash
-pip install twikit pandas python-dotenv transformers torch scikit-learn matplotlib seaborn tqdm
+pip install -r requirements.txt
 ```
 
-3. For GPU acceleration (optional):
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-```
-
-4. Download the TrEmo dataset and place `tremo_data.csv` in `2_turkish_emotions_datasets/` folder
+3. Download the TrEmo dataset and place `tremo_data.csv` in `2_turkish_emotions_datasets/` folder
 
 ## Output Structure
 
