@@ -79,6 +79,7 @@ Performs zero-shot topic classification on collected tweets.
 - 15 predefined topic categories
 - GPU acceleration support
 - Adds topic column to existing dataset
+- Supports custom topic labels via command line arguments
 
 **Topics:**
 - göç, ekonomi, eğitim, sağlık, adalet, güvenlik
@@ -87,7 +88,14 @@ Performs zero-shot topic classification on collected tweets.
 
 **Usage:**
 ```bash
+# Using default topics
 python 4_topic_extractor.py
+
+# Using custom topics (comma-separated)
+python 4_topic_extractor.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik"
+
+# Using custom topics (comma-separated)
+python 4_topic_extractor.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik, dış politika, sosyal politikalar, çevre, ulaşım, enerji, kültür ve medya, siyaset, yerel yönetim, genel"
 ```
 
 ### 5. Emotion Classification (`5_emotions_classification_of_tweets.py`)
@@ -182,6 +190,9 @@ pip install -r requirements.txt
 - **Emotion Classification**: Multi-class emotion detection using fine-tuned Turkish BERT
 - **Topic Classification**: Zero-shot topic classification with 15 categories
 - **Political Analysis**: Comparison between left/right political orientations
+- **Party Comparison**: Emotion distribution across different political parties
+- **Individual Profiles**: Detailed emotion analysis for top politicians
+- **Visualization**: Comprehensive charts, heatmaps, and radar plots
 - **Party Comparison**: Emotion distribution across different political parties
 - **Individual Profiles**: Detailed emotion analysis for top politicians
 - **Visualization**: Comprehensive charts, heatmaps, and radar plots
