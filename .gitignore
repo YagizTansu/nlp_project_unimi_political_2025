@@ -1,5 +1,7 @@
-/.pytest_cache
-/0_udemy_dersler
+/0_politican_tweets_raw_data
+/1_politican_tweets_combined_data
+/2_turkish_emotions_dataset
+/3_tweets_with_emotions
 /fine_tuned_turkish_bert_emotions
 /fine_tuned_turkish_emotions
 /results
