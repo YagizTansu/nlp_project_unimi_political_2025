@@ -29,22 +29,16 @@ else:
         "eğitim",         # öğretmen, okul, sınav, üniversite
         "sağlık",         # doktor, hastane, aşı, pandemi
         "adalet",         # yargı, mahkeme, hukuk sistemi
-        "güvenlik",       # terör, saldırı, operasyon, şehit
         "dış politika",   # NATO, AB, ABD, büyükelçi
-        "sosyal politikalar",  # kadın, LGBT, engelli, sosyal yardım
-        "çevre",          # iklim, doğa, orman, çevre kirliliği
-        "ulaşım",         # yol, köprü, metro, ulaşım projeleri
         "enerji",         # doğalgaz, elektrik, yenilenebilir
-        "kültür ve medya",# basın, sansür, sanat, medya
-        "siyaset",        # seçim, aday, oy, miting
-        "yerel yönetim",  # belediye, hizmet, başkan
+        "başsağlığı",     # başsağlığı, geçmiş olsun, taziye
         "genel"           # hiçbirine doğrudan girmeyenler
     ]
     print("Default konular kullanılıyor")
 
 print(f"Toplam konu sayısı: {len(labels)}")
 
-classifier = pipeline("zero-shot-classification", model="xlm-roberta-large",device=device)
+classifier = pipeline("zero-shot-classification", model="dbmdz/bert-base-turkish-cased", device=device)
 
 # Tweet veri çerçevesi
 df = pd.read_csv("1_politican_tweets_combined_data/all_cleaned_tweets.csv")
@@ -66,7 +60,7 @@ for i in tqdm(range(0, len(df), batch_size)):
 df["topic"] = topics
 
 # Sonuçları kaydet
-df.to_csv("1_politican_tweets_combined_data/all_cleaned_tweets.csv", index=False)
+df.to_csv("1_politican_tweets_combined_data/all_cleaned_topic_tweets.csv", index=False)
 
 # Konu dağılımını yazdır
 print("\n=== KONU DAĞILIMI ===")
