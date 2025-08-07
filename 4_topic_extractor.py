@@ -2,6 +2,7 @@ import pandas as pd
 from transformers import pipeline
 from tqdm import tqdm
 import torch
+import argparse
 
 # tqdm'u pandas ile entegre et
 tqdm.pandas()
@@ -10,27 +11,40 @@ tqdm.pandas()
 device = 0 if torch.cuda.is_available() else -1
 print(f"Kullanılan cihaz: {'GPU' if device == 0 else 'CPU'}")
 
+# Komut satırı argümanlarını parse et
+parser = argparse.ArgumentParser(description='Tweet konu sınıflandırması')
+parser.add_argument('--topics', nargs='*', help='Sınıflandırma için kullanılacak konular (virgülle ayrılmış)')
+args = parser.parse_args()
+
+# Konuları belirle
+if args.topics:
+    # Komut satırından gelen konuları kullan
+    labels = [topic.strip() for topic in ' '.join(args.topics).split(',')]
+    print(f"Kullanıcı tanımlı konular: {labels}")
+else:
+    # Default konuları kullan
+    labels = [
+        "göç",            # sığınmacılar, mülteciler, sınır güvenliği
+        "ekonomi",        # enflasyon, işsizlik, zam, maaş
+        "eğitim",         # öğretmen, okul, sınav, üniversite
+        "sağlık",         # doktor, hastane, aşı, pandemi
+        "adalet",         # yargı, mahkeme, hukuk sistemi
+        "güvenlik",       # terör, saldırı, operasyon, şehit
+        "dış politika",   # NATO, AB, ABD, büyükelçi
+        "sosyal politikalar",  # kadın, LGBT, engelli, sosyal yardım
+        "çevre",          # iklim, doğa, orman, çevre kirliliği
+        "ulaşım",         # yol, köprü, metro, ulaşım projeleri
+        "enerji",         # doğalgaz, elektrik, yenilenebilir
+        "kültür ve medya",# basın, sansür, sanat, medya
+        "siyaset",        # seçim, aday, oy, miting
+        "yerel yönetim",  # belediye, hizmet, başkan
+        "genel"           # hiçbirine doğrudan girmeyenler
+    ]
+    print("Default konular kullanılıyor")
+
+print(f"Toplam konu sayısı: {len(labels)}")
 
 classifier = pipeline("zero-shot-classification", model="xlm-roberta-large",device=device)
-
-# Belirlediğin konular
-labels = [
-    "göç",            # sığınmacılar, mülteciler, sınır güvenliği
-    "ekonomi",        # enflasyon, işsizlik, zam, maaş
-    "eğitim",         # öğretmen, okul, sınav, üniversite
-    "sağlık",         # doktor, hastane, aşı, pandemi
-    "adalet",         # yargı, mahkeme, hukuk sistemi
-    "güvenlik",       # terör, saldırı, operasyon, şehit
-    "dış politika",   # NATO, AB, ABD, büyükelçi
-    "sosyal politikalar",  # kadın, LGBT, engelli, sosyal yardım
-    "çevre",          # iklim, doğa, orman, çevre kirliliği
-    "ulaşım",         # yol, köprü, metro, ulaşım projeleri
-    "enerji",         # doğalgaz, elektrik, yenilenebilir
-    "kültür ve medya",# basın, sansür, sanat, medya
-    "siyaset",        # seçim, aday, oy, miting
-    "yerel yönetim",  # belediye, hizmet, başkan
-    "genel"           # hiçbirine doğrudan girmeyenler
-]
 
 # Tweet veri çerçevesi
 df = pd.read_csv("1_politican_tweets_combined_data/all_cleaned_tweets.csv")
