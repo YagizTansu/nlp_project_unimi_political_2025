@@ -24,7 +24,7 @@ emotion_id_to_name = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_na
 emotion_id_to_name_tr = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_tr']))
 
 # Load cleaned tweets dataset
-cleaned_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/cleaned_tweets_with_emotions.csv')
+cleaned_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv')
 
 # Basic dataset information
 political_side_counts = cleaned_tweets_df['political_side'].value_counts()

@@ -138,7 +138,7 @@ print(f"Using column '{text_col}' for predictions")
 
 # Clean texts and create new dataframe with only necessary columns
 print("Preparing data...")
-cleaned_tweets_df = full_tweets_df[['ID', 'Author', 'party', 'political_side', 'Date', text_col]].copy()
+cleaned_tweets_df = full_tweets_df[['ID', 'Author', 'party', 'political_side', 'Date','topic', text_col]].copy()
 
 # Reset index
 cleaned_tweets_df = cleaned_tweets_df.reset_index(drop=True)
@@ -170,8 +170,6 @@ for i in range(0, len(cleaned_tweets_df), batch_size):
 cleaned_tweets_df['predicted_emotions'] = predicted_emotions
 cleaned_tweets_df['top3_emotions'] = top3_emotions
 
-# Remove the original Text column before saving
-cleaned_tweets_df = cleaned_tweets_df.drop(columns=['Text'])
 
 # Save the cleaned dataset
 output_path = '/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv'
