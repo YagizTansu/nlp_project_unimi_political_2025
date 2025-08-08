@@ -90,7 +90,7 @@ print("\nTesting completed successfully!")
 print("\nProcessing all_cleaned_tweets.csv...")
 
 # Load the full tweets dataset
-full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_tweets.csv')
+full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_topic_tweets.csv')
 print(f"Loaded {len(full_tweets_df)} tweets")
 
 # Function to get emotion prediction for a text
