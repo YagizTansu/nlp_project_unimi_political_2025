@@ -3,18 +3,44 @@ from datetime import datetime
 import pandas as pd
 from twikit import Client
 import os
-import sys
-from dotenv import load_dotenv
+import re
+from dotenv import load_dotenv  # added
+import argparse  # added
 
-# Load environment variables from .env file
-load_dotenv()
+load_dotenv()  # load .env file
 
-USERNAME = os.getenv("USERNAME")
-EMAIL = os.getenv("EMAIL")
-PASSWORD = os.getenv("PASSWORD")
+TWITTER_USERNAME = os.getenv("TWITTER_USERNAME")
+TWITTER_EMAIL = os.getenv("TWITTER_EMAIL")
+TWITTER_PASSWORD = os.getenv("TWITTER_PASSWORD")
 
-# Initialize client
+if not all([TWITTER_USERNAME, TWITTER_EMAIL, TWITTER_PASSWORD]):
+    raise RuntimeError("Missing Twitter credentials in .env (TWITTER_USERNAME, TWITTER_EMAIL, TWITTER_PASSWORD).")
+
+# Initialize client (üstte tutuyoruz)
 client = Client('en-US')
+
+# --- Utility functions (gruplanmış) ---
+def is_special_message_tweet(text):
+    memorial_patterns = [
+        r"\bsayg[ıi]\b", r"\bminnet\b", r"\b(rahmet|an[ıi]yoruz|özlemle)\b",
+        r"\bşehit(ler(i|imizi)?|imiz|i)?\b", r"\btaziye\b", r"\bvefat\b",
+        r"\bmekan[ıi] cennet\b", r"\b(Allah rahmet eylesin|ruh[lu]ar[ıi] şad olsun)\b"
+    ]
+
+    celebration_patterns = [
+        r"\btebrik(ler| ederim| ediyoruz)?\b", r"\bkutlu olsun\b", r"\biyi ki\b",
+        r"\bbaşarılar\b", r"\bnice yıllara\b", r"\bmutlu yıllar\b",
+        r"\bdoğum gün(ü|ün) kutlu olsun\b", r"\byaş gün(ü|ün) kutlu olsun\b",
+        r"\bbayram(ınız)? kutlu olsun\b", r"\b23 nisan\b", r"\b19 may[ıi]s\b",
+        r"\b30 a[ğg]ustos\b", r"\b29 ek[ıi]m\b", r"\bcumhuriyet bayram[ıi]\b",
+        r"\bzafer bayram[ıi]\b", r"\bmill[iı] bayram[ıi]\b", r"\bsevincini paylaşıyoruz\b"
+    ]
+
+    text = text.lower()
+    return (
+        any(re.search(pattern, text) for pattern in memorial_patterns) or
+        any(re.search(pattern, text) for pattern in celebration_patterns)
+    )
 
 def parse_twitter_date(date_str):
     """Convert Twitter date format to datetime object"""
@@ -36,11 +62,11 @@ def save_tweets_to_csv(tweets, username, filename=None, append=False):
             'ID': tweet.id,
             'Author': tweet.user.screen_name,
             'Text': full_text,  # Use full text instead of truncated text
-            'Date': tweet.created_at
-            # 'Like_Count': tweet.favorite_count,
-            # 'Retweet_Count': tweet.retweet_count,
-            # 'Reply_Count': getattr(tweet, 'reply_count', 0),
-            # 'URL': f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
+            'Date': tweet.created_at,
+            'Like_Count': tweet.favorite_count,
+            'Retweet_Count': tweet.retweet_count,
+            'Reply_Count': getattr(tweet, 'reply_count', 0),
+            'URL': f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
         })
     
     # Create DataFrame and save to CSV
@@ -56,6 +82,7 @@ def save_tweets_to_csv(tweets, username, filename=None, append=False):
     
     return filename
 
+# --- Core async functions ---
 async def get_user_tweets(username, limit=10):
     # Find user
     user = await client.get_user_by_screen_name(username)
@@ -93,14 +120,17 @@ async def get_user_tweets(username, limit=10):
                 print(f"Found tweet older than January 1, 2024. Stopping search.")
                 tweets = None  # End the loop
                 break
-            
+
             # Skip retweets
             if tweet.text.startswith("RT @"):
-                continue  # Retweet ise atla
+                continue
             
             # Skip replies
             if hasattr(tweet, 'in_reply_to_status_id') and tweet.in_reply_to_status_id is not None:
-                continue  # Cevap (reply) ise atla
+                continue
+
+            if is_special_message_tweet(tweet.text):
+                continue
             
             batch_tweets.append(tweet)
             if len(all_tweets) + len(batch_tweets) >= limit:
@@ -170,6 +200,8 @@ async def get_user_tweets(username, limit=10):
             print(f"ID: {tweet.id}")
             print(f"Text: {tweet.text[:150]}...") # Show first 150 characters of tweet
             print(f"Date: {tweet.created_at}")
+            print(f"Like Count: {tweet.favorite_count}")
+            print(f"Retweet Count: {tweet.retweet_count}")
             print("-" * 20)
         
         return all_tweets, csv_filename
@@ -177,7 +209,7 @@ async def get_user_tweets(username, limit=10):
         print(f"No tweets found or could not fetch tweets from '{username}' user after January 1, 2024.")
         return [], None
 
-async def process_all_politicians(csv_file_path, tweet_limit=200):
+async def process_all_politicians(csv_file_path, tweet_limit=100):
     """Process all politicians from the CSV file"""
     try:
         # Read the CSV file
@@ -221,35 +253,23 @@ async def process_all_politicians(csv_file_path, tweet_limit=200):
     except Exception as e:
         print(f"Error reading CSV file: {e}")
 
-async def main():
+# --- CLI argument parsing ---
+def get_args():  # added
+    parser = argparse.ArgumentParser(description="Collect politician tweets")
+    parser.add_argument("--csv-file", default="politicians.csv", help="Path to politicians CSV (default: politicians.csv)")
+    parser.add_argument("--tweet-limit", type=int, default=10, help="Tweet limit per user (default: 10)")
+    return parser.parse_args()
+
+# --- Entry point ---
+async def main(csv_file_path, tweet_limit):  # modified signature
     await client.login(
-        auth_info_1=USERNAME,
-        auth_info_2=EMAIL,
-        password=PASSWORD,
+        auth_info_1=TWITTER_USERNAME,
+        auth_info_2=TWITTER_EMAIL,
+        password=TWITTER_PASSWORD,
         cookies_file='cookies.json'
     )
-    
-    # Get CSV file path from command line argument or use default
-    if len(sys.argv) > 1:
-        csv_file_path = sys.argv[1]
-        print(f"Using CSV file: {csv_file_path}")
-    else:
-        csv_file_path = "politicians.csv"
-        print(f"Using default CSV file: {csv_file_path}")
-    
-    # Get tweet limit from command line argument or use default
-    if len(sys.argv) > 2:
-        try:
-            tweet_limit = int(sys.argv[2])
-            print(f"Using tweet limit: {tweet_limit}")
-        except ValueError:
-            print(f"Invalid tweet limit '{sys.argv[2]}', using default: 100")
-            tweet_limit = 100
-    else:
-        tweet_limit = 100
-        print(f"Using default tweet limit: {tweet_limit}")
-    
-    # Process all politicians from CSV
     await process_all_politicians(csv_file_path, tweet_limit=tweet_limit)
 
-asyncio.run(main())
+if __name__ == "__main__":  # added
+    args = get_args()
+    asyncio.run(main(args.csv_file, args.tweet_limit))
