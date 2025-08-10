@@ -25,6 +25,10 @@ with open(f'{model_path}/label_mappings.json', 'r', encoding='utf-8') as f:
 print(f"Loaded fine-tuned model from: {model_path}")
 print(f"Available emotions: {emotion_labels}")
 
+# Load the full tweets dataset
+full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_topic_tweets.csv')
+print(f"Loaded {len(full_tweets_df)} tweets")
+
 # Prediction function for single-class classification
 def predict_emotion(text, return_top_k=3):
     model.eval()
@@ -47,51 +51,6 @@ def predict_emotion(text, return_top_k=3):
     
     return best_emotion, top_predictions
 
-# Test predictions
-sample_text = "Bu gerçekten harika bir gün!"
-predicted_emotion, top_predictions = predict_emotion(sample_text)
-
-print(f"\nSample prediction for: '{sample_text}'")
-print(f"Predicted emotion: {predicted_emotion}")
-print("Top 3 predictions:")
-for emotion, score in top_predictions:
-    print(f"  {emotion}: {score:.4f}")
-
-# Batch test
-sample_political_tweet_texts = [
-    "Bugün çok üzgünüm, ülkemiz için endişeliyim.",
-    "Bu seçim sonuçları beni çok mutlu etti!",
-    "Hükümetin politikalarını eleştiriyorum, daha iyi bir gelecek istiyorum.",
-    "Bu konuda kafam çok karışık, ne yapacağımı bilmiyorum.",
-    "Partim için çok heyecanlıyım, yeni projelerimiz var!",
-    "Bu tweeti yazarken çok kızgınım, adaletsizliklere karşıyım.",
-    "Sevgi dolu bir toplum için çalışmalıyız, birlik olmalıyız.",
-    "Bu konuda çok şaşkınım, beklemediğim bir durumla karşılaştım.",
-    "Ülkemizin geleceği için umutluyum, gençlerimize güveniyorum.",
-    "Bu konuda çok endişeliyim, geleceğimiz tehlikede.",
-    "Bu tweeti yazarken çok mutluyum, güzel bir haber aldım.",
-    "Bu konuda çok kızgınım, adaletsizliklere karşıyım.",
-    "Cezaevinden yeni çıkan eski Eşbaşkanımız Fikret Doğanı Vanda evinde ziyaret ettik. Tekrar geçmiş olsun.",
-    "Her şey onların hayaliyle başladı. Trabzonsporumuzun temellerini atan kurucularımızı saygı, sevgi ve minnetle anıyoruz."
-]
-
-print("\nTesting model with multiple samples:")
-for text in sample_political_tweet_texts:
-    pred_emotion, top_preds = predict_emotion(text)
-    print(f"\nText: {text}")
-    print(f"Predicted emotion: {pred_emotion}")
-    print("Top 3 predictions:")
-    for emotion, score in top_preds:
-        print(f"  {emotion}: {score:.4f}")
-
-print("\nTesting completed successfully!")
-
-# Process all_cleaned_tweets.csv file
-print("\nProcessing all_cleaned_tweets.csv...")
-
-# Load the full tweets dataset
-full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_topic_tweets.csv')
-print(f"Loaded {len(full_tweets_df)} tweets")
 
 # Function to get emotion prediction for a text
 def get_emotion_prediction(text):
@@ -169,7 +128,6 @@ for i in range(0, len(cleaned_tweets_df), batch_size):
 # Add the emotion prediction columns
 cleaned_tweets_df['predicted_emotions'] = predicted_emotions
 cleaned_tweets_df['top3_emotions'] = top3_emotions
-
 
 # Save the cleaned dataset
 output_path = '/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv'

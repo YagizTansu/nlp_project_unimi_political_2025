@@ -4,22 +4,11 @@ import pandas as pd
 from twikit import Client
 import os
 import re
-from dotenv import load_dotenv  # added
-import argparse  # added
+import dotenv
 
-load_dotenv()  # load .env file
+# Load environment variables from .env file
+dotenv.load_dotenv()
 
-TWITTER_USERNAME = os.getenv("TWITTER_USERNAME")
-TWITTER_EMAIL = os.getenv("TWITTER_EMAIL")
-TWITTER_PASSWORD = os.getenv("TWITTER_PASSWORD")
-
-if not all([TWITTER_USERNAME, TWITTER_EMAIL, TWITTER_PASSWORD]):
-    raise RuntimeError("Missing Twitter credentials in .env (TWITTER_USERNAME, TWITTER_EMAIL, TWITTER_PASSWORD).")
-
-# Initialize client (üstte tutuyoruz)
-client = Client('en-US')
-
-# --- Utility functions (gruplanmış) ---
 def is_special_message_tweet(text):
     memorial_patterns = [
         r"\bsayg[ıi]\b", r"\bminnet\b", r"\b(rahmet|an[ıi]yoruz|özlemle)\b",
@@ -42,6 +31,14 @@ def is_special_message_tweet(text):
         any(re.search(pattern, text) for pattern in celebration_patterns)
     )
 
+USERNAME = os.getenv("TWITTER_USERNAME")
+EMAIL = os.getenv("TWITTER_EMAIL")
+PASSWORD = os.getenv("TWITTER_PASSWORD")
+
+
+# Initialize client
+client = Client('en-US')
+
 def parse_twitter_date(date_str):
     """Convert Twitter date format to datetime object"""
     return datetime.strptime(date_str, '%a %b %d %H:%M:%S %z %Y')
@@ -62,11 +59,11 @@ def save_tweets_to_csv(tweets, username, filename=None, append=False):
             'ID': tweet.id,
             'Author': tweet.user.screen_name,
             'Text': full_text,  # Use full text instead of truncated text
-            'Date': tweet.created_at,
-            'Like_Count': tweet.favorite_count,
-            'Retweet_Count': tweet.retweet_count,
-            'Reply_Count': getattr(tweet, 'reply_count', 0),
-            'URL': f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
+            'Date': tweet.created_at
+            # 'Like_Count': tweet.favorite_count,
+            # 'Retweet_Count': tweet.retweet_count,
+            # 'Reply_Count': getattr(tweet, 'reply_count', 0),
+            # 'URL': f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
         })
     
     # Create DataFrame and save to CSV
@@ -82,7 +79,6 @@ def save_tweets_to_csv(tweets, username, filename=None, append=False):
     
     return filename
 
-# --- Core async functions ---
 async def get_user_tweets(username, limit=10):
     # Find user
     user = await client.get_user_by_screen_name(username)
@@ -209,7 +205,7 @@ async def get_user_tweets(username, limit=10):
         print(f"No tweets found or could not fetch tweets from '{username}' user after January 1, 2024.")
         return [], None
 
-async def process_all_politicians(csv_file_path, tweet_limit=100):
+async def process_all_politicians(csv_file_path, tweet_limit=200):
     """Process all politicians from the CSV file"""
     try:
         # Read the CSV file
@@ -253,23 +249,16 @@ async def process_all_politicians(csv_file_path, tweet_limit=100):
     except Exception as e:
         print(f"Error reading CSV file: {e}")
 
-# --- CLI argument parsing ---
-def get_args():  # added
-    parser = argparse.ArgumentParser(description="Collect politician tweets")
-    parser.add_argument("--csv-file", default="politicians.csv", help="Path to politicians CSV (default: politicians.csv)")
-    parser.add_argument("--tweet-limit", type=int, default=10, help="Tweet limit per user (default: 10)")
-    return parser.parse_args()
-
-# --- Entry point ---
-async def main(csv_file_path, tweet_limit):  # modified signature
+async def main():
     await client.login(
-        auth_info_1=TWITTER_USERNAME,
-        auth_info_2=TWITTER_EMAIL,
-        password=TWITTER_PASSWORD,
+        auth_info_1=USERNAME,
+        auth_info_2=EMAIL,
+        password=PASSWORD,
         cookies_file='cookies.json'
     )
-    await process_all_politicians(csv_file_path, tweet_limit=tweet_limit)
+    
+    # Process all politicians from CSV
+    csv_file_path = "politicians.csv"
+    await process_all_politicians(csv_file_path, tweet_limit=100)
 
-if __name__ == "__main__":  # added
-    args = get_args()
-    asyncio.run(main(args.csv_file, args.tweet_limit))
+asyncio.run(main())

@@ -1,352 +1,343 @@
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
-from collections import Counter
-import warnings
-import os
-from matplotlib.gridspec import GridSpec
+import matplotlib.pyplot as plt
+from pathlib import Path
 
-warnings.filterwarnings('ignore')
+def load_data(csv_path: str) -> pd.DataFrame:
+    df = pd.read_csv(csv_path)
+    # Basic column presence check
+    required = {"Author", "party", "predicted_emotions"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing column(s): {missing}")
+    return df
 
-# Set Turkish locale for plots
-plt.rcParams['font.family'] = ['DejaVu Sans']
-plt.rcParams['figure.figsize'] = (12, 8)
+def explode_emotions(df: pd.DataFrame) -> pd.DataFrame:
+    # predicted_emotions may contain comma-separated values; explode to long form
+    df = df.copy()
+    df["predicted_emotions"] = (
+        df["predicted_emotions"]
+        .astype(str)
+        .str.split(",")
+    )
+    df = df.explode("predicted_emotions")
+    df["predicted_emotions"] = (
+        df["predicted_emotions"]
+        .str.strip()
+        .str.capitalize()
+    )
+    df = df[df["predicted_emotions"] != ""]
+    return df
 
-# Create output directory for plots
-plots_dir = '/home/yagiz/Desktop/nlp_project/4_sentiment_plots'
-os.makedirs(plots_dir, exist_ok=True)
+def count_party_emotions(df: pd.DataFrame) -> pd.DataFrame:
+    counts = (
+        df.groupby(["party", "predicted_emotions"])
+          .size()
+          .reset_index(name="count")
+    )
+    return counts
 
-# Load emotion definitions
-emotions_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/emotions_english_turkish.csv')
-emotion_name_to_id = dict(zip(emotions_df['emotion_name_en'], emotions_df['emotion_id']))
-emotion_id_to_name = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_en']))
-emotion_id_to_name_tr = dict(zip(emotions_df['emotion_id'], emotions_df['emotion_name_tr']))
+def summarize_top3(counts: pd.DataFrame):
+    top3 = (
+        counts.sort_values(["party", "count"], ascending=[True, False])
+              .groupby("party")
+              .head(3)
+    )
+    print("\nTop 3 emotions per party:")
+    for party, grp in top3.groupby("party"):
+        parts = [f"{r.predicted_emotions}={int(r['count'])}" for _, r in grp.iterrows()]
+        print(f"  {party}: " + ", ".join(parts))
 
-# Load cleaned tweets dataset
-cleaned_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv')
-
-# Basic dataset information
-political_side_counts = cleaned_tweets_df['political_side'].value_counts()
-party_counts = cleaned_tweets_df['party'].value_counts()
-author_counts = cleaned_tweets_df['Author'].value_counts().head(10)
-
-# Extract emotions
-def extract_emotions(emotions_series):
-    all_emotions = []
-    for emotions_str in emotions_series:
-        if emotions_str and isinstance(emotions_str, str) and emotions_str != '':
-            try:
-                emotion_names = [x.strip() for x in emotions_str.split(',')]
-                all_emotions.extend(emotion_names)
-            except:
-                continue
-    return all_emotions
-
-# Overall emotion analysis - using both emotion columns
-all_top3_emotions = extract_emotions(cleaned_tweets_df['top3_emotions'])
-all_predicted_emotions = extract_emotions(cleaned_tweets_df['predicted_emotions'])
-
-top3_emotion_counter = Counter(all_top3_emotions)
-predicted_emotion_counter = Counter(all_predicted_emotions)
-
-# Create overall emotion distribution plot for both emotion types
-plt.figure(figsize=(14, 8))
-top_emotions = dict(predicted_emotion_counter.most_common(15))
-emotions_df = pd.DataFrame({'Emotion': list(top_emotions.keys()), 
-                           'Count': list(top_emotions.values())})
-emotions_df['Turkish'] = emotions_df['Emotion'].apply(
-    lambda x: emotion_id_to_name_tr.get(emotion_name_to_id.get(x, 'Unknown'), 'Bilinmeyen'))
-emotions_df['Label'] = emotions_df['Emotion'] + '\n(' + emotions_df['Turkish'] + ')'
-emotions_df = emotions_df.sort_values('Count', ascending=False)
-
-sns.barplot(x='Count', y='Label', data=emotions_df, palette='viridis')
-plt.title('Top 15 High-Confidence Emotions (>20%) in All Tweets', fontsize=16)
-plt.xlabel('Count', fontsize=12)
-plt.ylabel('Emotion', fontsize=12)
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/overall_high_confidence_emotion_distribution.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Political side distribution
-plt.figure(figsize=(10, 6))
-sns.barplot(x=political_side_counts.index, y=political_side_counts.values, palette=['blue', 'red'])
-plt.title('Tweet Distribution by Political Side', fontsize=16)
-plt.xlabel('Political Side', fontsize=12)
-plt.ylabel('Number of Tweets', fontsize=12)
-for i, v in enumerate(political_side_counts.values):
-    plt.text(i, v/2, f"{v} ({v/sum(political_side_counts)*100:.1f}%)", 
-             ha='center', fontsize=12, color='white')
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/political_side_distribution.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Party distribution
-plt.figure(figsize=(14, 8))
-party_df = pd.DataFrame({'Party': party_counts.index, 'Count': party_counts.values})
-party_df = party_df.sort_values('Count', ascending=False)
-sns.barplot(x='Party', y='Count', data=party_df, palette='tab10')
-plt.title('Tweet Distribution by Party', fontsize=16)
-plt.xlabel('Political Party', fontsize=12)
-plt.ylabel('Number of Tweets', fontsize=12)
-plt.xticks(rotation=45)
-for i, v in enumerate(party_df['Count']):
-    plt.text(i, v/2, f"{v} ({v/sum(party_counts)*100:.1f}%)", 
-             ha='center', fontsize=10, color='white')
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/party_distribution.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Emotion analysis by political side - using predicted_emotions (high confidence)
-left_tweets = cleaned_tweets_df[cleaned_tweets_df['political_side'] == 'left']
-right_tweets = cleaned_tweets_df[cleaned_tweets_df['political_side'] == 'right']
-
-left_emotions = extract_emotions(left_tweets['predicted_emotions'])
-right_emotions = extract_emotions(right_tweets['predicted_emotions'])
-
-left_emotion_counter = Counter(left_emotions)
-right_emotion_counter = Counter(right_emotions)
-
-# Create comparison dataframe
-all_emotion_names = set(left_emotion_counter.keys()) | set(right_emotion_counter.keys())
-comparison_data = []
-for emotion_name in sorted(all_emotion_names):
-    left_count = left_emotion_counter.get(emotion_name, 0)
-    right_count = right_emotion_counter.get(emotion_name, 0)
-    left_pct = (left_count / len(left_emotions)) * 100 if left_emotions else 0
-    right_pct = (right_count / len(right_emotions)) * 100 if right_emotions else 0
-    diff = left_pct - right_pct
-    
-    emotion_id = emotion_name_to_id.get(emotion_name, 'Unknown')
-    emotion_name_tr = emotion_id_to_name_tr.get(emotion_id, 'Bilinmeyen')
-    
-    comparison_data.append({
-        'emotion_name': emotion_name,
-        'emotion_name_tr': emotion_name_tr,
-        'left_count': left_count,
-        'right_count': right_count,
-        'left_pct': left_pct,
-        'right_pct': right_pct,
-        'difference': diff
-    })
-
-# Sort by absolute difference and get top 15
-comparison_data.sort(key=lambda x: abs(x['difference']), reverse=True)
-top_comparison = pd.DataFrame(comparison_data[:15])
-
-# Create left vs right emotion comparison plot
-plt.figure(figsize=(14, 10))
-top_comparison['Label'] = top_comparison['emotion_name'] + '\n(' + top_comparison['emotion_name_tr'] + ')'
-plt.barh(top_comparison['Label'], top_comparison['left_pct'], color='blue', alpha=0.7, label='Left')
-plt.barh(top_comparison['Label'], -top_comparison['right_pct'], color='red', alpha=0.7, label='Right')
-plt.axvline(x=0, color='black', linestyle='-')
-plt.xlabel('Percentage (%)', fontsize=12)
-plt.title('Top 15 High-Confidence Emotions with Biggest Differences Between Left and Right', fontsize=16)
-plt.legend()
-
-# Add percentage labels
-for i, row in enumerate(top_comparison.itertuples()):
-    plt.text(row.left_pct+0.5, i, f"{row.left_pct:.1f}%", va='center')
-    plt.text(-row.right_pct-3.5, i, f"{row.right_pct:.1f}%", va='center')
-
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/left_vs_right_high_confidence_emotions.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Emotion analysis by party - using predicted_emotions (high confidence)
-plt.figure(figsize=(16, 12))
-
-# Filter out NaN values in party
-valid_parties = cleaned_tweets_df[cleaned_tweets_df['party'].notna()]
-
-# Get top 8 emotions across all parties
-all_party_emotions = []
-for party in valid_parties['party'].unique():
-    party_emotions = extract_emotions(cleaned_tweets_df[cleaned_tweets_df['party'] == party]['predicted_emotions'])
-    all_party_emotions.extend(party_emotions)
-
-top_emotions_overall = [e for e, _ in Counter(all_party_emotions).most_common(8)]
-
-# Create heatmap data
-party_emotion_data = []
-for party in valid_parties['party'].unique():
-    party_tweets = cleaned_tweets_df[cleaned_tweets_df['party'] == party]
-    party_emotions = extract_emotions(party_tweets['predicted_emotions'])
-    party_emotion_counter = Counter(party_emotions)
-    
-    for emotion in top_emotions_overall:
-        count = party_emotion_counter.get(emotion, 0)
-        percentage = (count / len(party_emotions)) * 100 if party_emotions else 0
-        party_emotion_data.append({
-            'Party': party,
-            'Emotion': emotion,
-            'Percentage': percentage
-        })
-
-emotion_heatmap_df = pd.DataFrame(party_emotion_data)
-emotion_heatmap_pivot = emotion_heatmap_df.pivot(index='Party', columns='Emotion', values='Percentage')
-
-# Create heatmap
-sns.heatmap(emotion_heatmap_pivot, annot=True, fmt='.1f', cmap='YlGnBu', linewidths=0.5)
-plt.title('High-Confidence Emotion Distribution by Political Party (Percentage)', fontsize=16)
-plt.xlabel('Emotion', fontsize=12)
-plt.ylabel('Party', fontsize=12)
-plt.xticks(rotation=45, ha='right')
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/party_high_confidence_emotion_heatmap.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Emotion analysis for top authors - using predicted_emotions (high confidence)
-top_5_authors = author_counts.index[:5]
-author_emotion_data = []
-
-for author in top_5_authors:
-    author_tweets = cleaned_tweets_df[cleaned_tweets_df['Author'] == author]
-    author_emotions = extract_emotions(author_tweets['predicted_emotions'])
-    author_emotion_counter = Counter(author_emotions)
-    top_8_emotions = [e for e, _ in author_emotion_counter.most_common(8)]
-    
-    party = author_tweets['party'].iloc[0]
-    political_side = author_tweets['political_side'].iloc[0]
-    
-    # Create radar chart data
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.add_subplot(111, polar=True)
-    
-    # Get emotion percentages
-    emotions = []
-    percentages = []
-    for emotion in top_8_emotions:
-        emotions.append(emotion)
-        percentage = (author_emotion_counter[emotion] / len(author_emotions)) * 100
-        percentages.append(percentage)
-    
-    # Number of variables
-    N = len(emotions)
-    angles = [n / float(N) * 2 * np.pi for n in range(N)]
-    angles += angles[:1]  # Close the loop
-    
-    percentages += percentages[:1]  # Close the loop
-    
-    # Draw polygon and fill it
-    ax.plot(angles, percentages, linewidth=1, linestyle='solid')
-    ax.fill(angles, percentages, alpha=0.1)
-    
-    # Add labels
-    plt.xticks(angles[:-1], emotions, size=10)
-    plt.yticks(np.arange(0, max(percentages)+10, 10), size=8)
-    
-    plt.title(f'High-Confidence Emotion Profile for {author}\n({party} - {political_side})', size=15, y=1.1)
+def plot_counts(counts: pd.DataFrame, output_dir: Path, index: int, label: str):
+    plt.figure(figsize=(12, 6))
+    sns.barplot(
+        data=counts,
+        x="party",
+        y="count",
+        hue="predicted_emotions",
+        edgecolor="black"
+    )
+    plt.title("Emotion Distribution by Party")
+    plt.ylabel("Tweet Count")
+    plt.xlabel("Party")
+    plt.legend(title="Emotion", bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout()
-    plt.savefig(f'{plots_dir}/author_{author.replace(" ", "_")}_high_confidence_emotions.png', dpi=300, bbox_inches='tight')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    safe_label = label.lower().replace(" ", "_")
+    out_file = output_dir / f"{index}_{safe_label}.png"
+    plt.savefig(out_file, dpi=300)
+    print(f"Figure saved to: {out_file}")
     plt.close()
 
-# Create a dashboard with subplots - using predicted_emotions (high confidence)
-plt.figure(figsize=(20, 15))
-gs = GridSpec(3, 2, figure=plt.gcf())
+# --- NEW: Party-Topic-Emotion helpers ---
+def count_party_topic_emotions(df: pd.DataFrame) -> pd.DataFrame:
+    return (
+        df.groupby(["topic", "party", "predicted_emotions"])
+          .size()
+          .reset_index(name="count")
+    )
 
-# Political sides distribution
-ax1 = plt.subplot(gs[0, 0])
-sns.barplot(x=political_side_counts.index, y=political_side_counts.values, palette=['blue', 'red'], ax=ax1)
-ax1.set_title('Tweet Distribution by Political Side', fontsize=14)
-ax1.set_xlabel('Political Side', fontsize=10)
-ax1.set_ylabel('Number of Tweets', fontsize=10)
-for i, v in enumerate(political_side_counts.values):
-    ax1.text(i, v/2, f"{v} ({v/sum(political_side_counts)*100:.1f}%)", 
-             ha='center', fontsize=10, color='white')
+def summarize_topic_party_top_emotion(counts_pt: pd.DataFrame, topics):
+    print("\nMost frequent emotion per party within each topic:")
+    for topic in topics:
+        sub = counts_pt[counts_pt["topic"] == topic]
+        if sub.empty:
+            continue
+        print(f"\nTopic: {topic}")
+        for party, g in sub.groupby("party"):
+            top = g.sort_values("count", ascending=False).head(1)
+            r = top.iloc[0]
+            print(f"  {party}: {r.predicted_emotions}={int(r['count'])}")
 
-# Overall emotion distribution
-ax2 = plt.subplot(gs[0, 1])
-top_emotions = dict(predicted_emotion_counter.most_common(10))
-emotions_df = pd.DataFrame({'Emotion': list(top_emotions.keys()), 
-                           'Count': list(top_emotions.values())})
-emotions_df['Label'] = emotions_df['Emotion']
-emotions_df = emotions_df.sort_values('Count', ascending=True)
-sns.barplot(x='Count', y='Label', data=emotions_df, palette='viridis', ax=ax2)
-ax2.set_title('Top 10 High-Confidence Emotions in All Tweets', fontsize=14)
-ax2.set_xlabel('Count', fontsize=10)
-ax2.set_ylabel('Emotion', fontsize=10)
+def plot_party_topic_for_topic(counts_pt: pd.DataFrame, topic: str, output_dir: Path, index: int):
+    subset = counts_pt[counts_pt["topic"] == topic]
+    if subset.empty:
+        return
+    plt.figure(figsize=(12, 6))
+    sns.barplot(
+        data=subset,
+        x="party",
+        y="count",
+        hue="predicted_emotions",
+        edgecolor="black"
+    )
+    plt.title(f"Topic: {topic} | Emotion Distribution by Party")
+    plt.ylabel("Tweet Count")
+    plt.xlabel("Party")
+    plt.legend(title="Emotion", bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.tight_layout()
+    safe_topic = str(topic).lower().replace(" ", "_")
+    out_file = output_dir / f"{index}_party_topic_{safe_topic}.png"
+    plt.savefig(out_file, dpi=300)
+    print(f"Figure saved to: {out_file}")
+    plt.close()
 
-# Left vs Right emotion comparison
-ax3 = plt.subplot(gs[1, :])
-top_8_comparison = pd.DataFrame(comparison_data[:8])
-top_8_comparison['Label'] = top_8_comparison['emotion_name']
-ax3.barh(top_8_comparison['Label'], top_8_comparison['left_pct'], color='blue', alpha=0.7, label='Left')
-ax3.barh(top_8_comparison['Label'], -top_8_comparison['right_pct'], color='red', alpha=0.7, label='Right')
-ax3.axvline(x=0, color='black', linestyle='-')
-ax3.set_xlabel('Percentage (%)', fontsize=10)
-ax3.set_title('High-Confidence Emotions with Biggest Differences Between Left and Right', fontsize=14)
-ax3.legend()
+# --- NEW: Political Side emotion helpers ---
+def count_side_emotions(df: pd.DataFrame) -> pd.DataFrame:
+    return (
+        df.groupby(["political_side", "predicted_emotions"])
+          .size()
+          .reset_index(name="count")
+    )
 
-# Party emotion heatmap
-ax4 = plt.subplot(gs[2, :])
-sns.heatmap(emotion_heatmap_pivot.iloc[:, :6], annot=True, fmt='.1f', cmap='YlGnBu', linewidths=0.5, ax=ax4)
-ax4.set_title('High-Confidence Emotion Distribution by Political Party (Percentage)', fontsize=14)
-ax4.set_xlabel('Emotion', fontsize=10)
-ax4.set_ylabel('Party', fontsize=10)
-plt.xticks(rotation=45, ha='right')
+def summarize_side_top(counts_side: pd.DataFrame, top_n: int = 3):
+    print("\nTop emotions by political side:")
+    top = (
+        counts_side.sort_values(["political_side", "count"], ascending=[True, False])
+                   .groupby("political_side")
+                   .head(top_n)
+    )
+    for side, grp in top.groupby("political_side"):
+        parts = [f"{r.predicted_emotions}={int(r['count'])}" for _, r in grp.iterrows()]
+        print(f"  {side}: " + ", ".join(parts))
 
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/high_confidence_sentiment_analysis_dashboard.png', dpi=300, bbox_inches='tight')
-plt.close()
+def plot_side_counts(counts_side: pd.DataFrame, output_dir: Path, index: int, label: str):
+    plt.figure(figsize=(10, 6))
+    sns.barplot(
+        data=counts_side,
+        x="political_side",
+        y="count",
+        hue="predicted_emotions",
+        edgecolor="black"
+    )
+    plt.title("Emotion Distribution by Political Side")
+    plt.ylabel("Tweet Count")
+    plt.xlabel("Political Side")
+    plt.legend(title="Emotion", bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    safe_label = label.lower().replace(" ", "_")
+    out_file = output_dir / f"{index}_{safe_label}.png"
+    plt.savefig(out_file, dpi=300)
+    print(f"Figure saved to: {out_file}")
+    plt.close()
 
-# Create party comparison bar charts for high-confidence emotions
-top_parties = party_counts.head(6).index
+# --- NEW: Topic-level emotion pie charts ---
+def plot_topic_emotion_pies(df_long: pd.DataFrame, output_dir: Path, start_index: int,
+                            topics: list[str] | None = None, max_topics: int = 4) -> int:
+    if "topic" not in df_long.columns:
+        print("\nTopic column not found; skipping topic emotion pie charts.")
+        return start_index
+    if topics:
+        selected = [t for t in topics if t in df_long["topic"].unique()]
+    else:
+        selected = (
+            df_long.groupby("topic")["predicted_emotions"]
+                   .count()
+                   .sort_values(ascending=False)
+                   .head(max_topics)
+                   .index.tolist()
+        )
+    if not selected:
+        print("\nNo topics selected for pie charts.")
+        return start_index
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for topic in selected:
+        sub = (df_long[df_long["topic"] == topic]
+               .groupby("predicted_emotions")
+               .size()
+               .reset_index(name="count")
+               .sort_values("count", ascending=False))
+        if sub.empty:
+            continue
+        # Küçük dilimleri birleştirme (opsiyonel)
+        total = sub["count"].sum()
+        sub["share"] = sub["count"] / total
+        small = sub[sub["share"] < 0.02]
+        if len(small) > 1:
+            merged = pd.DataFrame({
+                "predicted_emotions": ["Other"],
+                "count": [small["count"].sum()],
+                "share": [small["share"].sum()]
+            })
+            sub = pd.concat([sub[sub["share"] >= 0.02], merged], ignore_index=True)
+        plt.figure(figsize=(6, 6))
+        plt.pie(
+            sub["count"],
+            labels=sub["predicted_emotions"],
+            autopct=lambda p: f"{p:.1f}%\n({int(round(p*total/100))})" if p >= 5 else "",
+            startangle=90,
+            counterclock=False
+        )
+        plt.title(f"Topic: {topic} | Emotion Distribution")
+        plt.tight_layout()
+        safe_topic = str(topic).lower().replace(" ", "_")
+        out_file = output_dir / f"{start_index}_topic_emotions_{safe_topic}.png"
+        plt.savefig(out_file, dpi=300)
+        print(f"Figure saved to: {out_file}")
+        plt.close()
+        start_index += 1
+    return start_index
 
-plt.figure(figsize=(18, 12))
-for i, emotion in enumerate(top_emotions_overall[:6]):
-    plt.subplot(2, 3, i+1)
-    emotion_by_party = []
-    
-    for party in top_parties:
-        party_tweets = cleaned_tweets_df[cleaned_tweets_df['party'] == party]
-        party_emotions = extract_emotions(party_tweets['predicted_emotions'])
-        party_emotion_counter = Counter(party_emotions)
-        emotion_count = party_emotion_counter.get(emotion, 0)
-        percentage = (emotion_count / len(party_emotions)) * 100 if party_emotions else 0
-        emotion_by_party.append({
-            'Party': party,
-            'Percentage': percentage
-        })
-    
-    emotion_party_df = pd.DataFrame(emotion_by_party)
-    sns.barplot(x='Party', y='Percentage', data=emotion_party_df)
-    plt.title(f'"{emotion}" by Party (High-Confidence)', fontsize=12)
-    plt.xlabel('Party', fontsize=10)
-    plt.ylabel('Percentage (%)', fontsize=10)
-    plt.xticks(rotation=45, ha='right')
-    
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/high_confidence_emotion_by_party_comparison.png', dpi=300, bbox_inches='tight')
-plt.close()
+# --- NEW: Selected emotion time series (Fear, Anger, Pride) ---
+SELECTED_EMOTIONS = ["Fear", "Anger", "Pride"]
 
-# Add comparison between high-confidence and all emotions
-plt.figure(figsize=(16, 10))
-emotions_to_compare = [e for e, _ in predicted_emotion_counter.most_common(10)]
+def detect_datetime_column(df: pd.DataFrame):
+    candidates = ["date", "created_at", "createdAt", "timestamp", "Datetime", "Date"]
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return None
 
-comparison_df = []
-for emotion in emotions_to_compare:
-    high_conf_count = predicted_emotion_counter.get(emotion, 0)
-    all_count = top3_emotion_counter.get(emotion, 0)
-    
-    high_conf_pct = (high_conf_count / len(all_predicted_emotions)) * 100 if all_predicted_emotions else 0
-    all_pct = (all_count / len(all_top3_emotions)) * 100 if all_top3_emotions else 0
-    
-    comparison_df.append({
-        'Emotion': emotion,
-        'High Confidence': high_conf_pct,
-        'All Emotions': all_pct
-    })
+def prepare_time_series(df_long: pd.DataFrame) -> pd.DataFrame | None:
+    col = detect_datetime_column(df_long)
+    if not col:
+        print("\nNo datetime column detected; skipping time series.")
+        return None
+    ts = df_long.copy()
+    ts[col] = pd.to_datetime(ts[col], errors="coerce")
+    ts = ts.dropna(subset=[col])
+    ts = ts[ts["predicted_emotions"].isin(SELECTED_EMOTIONS)]
+    if ts.empty:
+        print("\nNo data for selected emotions in time series.")
+        return None
+    span_days = (ts[col].max() - ts[col].min()).days
+    ts["ts_period"] = ts[col].dt.to_period("M").dt.to_timestamp() if span_days > 90 else ts[col].dt.date
+    grouped = (
+        ts.groupby(["ts_period", "predicted_emotions"])
+          .size()
+          .reset_index(name="count")
+    )
+    return grouped
 
-comparison_df = pd.DataFrame(comparison_df)
-comparison_melted = pd.melt(comparison_df, id_vars=['Emotion'], var_name='Source', value_name='Percentage')
+def plot_time_series(grouped: pd.DataFrame, output_dir: Path, index: int) -> int:
+    if grouped is None or grouped.empty:
+        return index
+    pivoted = grouped.pivot(index="ts_period", columns="predicted_emotions", values="count").fillna(0)
+    # Preserve SELECTED_EMOTIONS order where present
+    cols = [c for c in SELECTED_EMOTIONS if c in pivoted.columns]
+    pivoted = pivoted[cols]
+    plt.figure(figsize=(12, 5))
+    for emotion in pivoted.columns:
+        plt.plot(pivoted.index, pivoted[emotion], marker="o", linewidth=2, label=emotion)
+    plt.title("Time Series of Selected Emotions (Fear / Anger / Pride)")
+    plt.ylabel("Tweet Count")
+    plt.xlabel("Time")
+    plt.legend(title="Emotion")
+    plt.xticks(rotation=30)
+    plt.tight_layout()
+    out_file = output_dir / f"{index}_time_series_selected_emotions.png"
+    plt.savefig(out_file, dpi=300)
+    print(f"Figure saved to: {out_file}")
+    plt.close()
+    return index + 1
 
-sns.barplot(x='Emotion', y='Percentage', hue='Source', data=comparison_melted)
-plt.title('Comparison Between High-Confidence Emotions and All Emotions', fontsize=16)
-plt.xlabel('Emotion', fontsize=12)
-plt.ylabel('Percentage (%)', fontsize=12)
-plt.xticks(rotation=45, ha='right')
-plt.legend(title='Source')
-plt.tight_layout()
-plt.savefig(f'{plots_dir}/high_confidence_vs_all_emotions_comparison.png', dpi=300, bbox_inches='tight')
-plt.close()
+def main():
+    # ---- Configuration ----
+    CSV_PATH = "/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv"
+    OUTPUT_DIR = Path("4_sentiment_plots")
+    plot_idx = 1  # sıralı dosya isimleri
+
+    df = load_data(CSV_PATH)
+    df_long = explode_emotions(df)
+    counts = count_party_emotions(df_long)
+    if counts.empty:
+        print("Warning: no emotion data found.")
+        return
+    summarize_top3(counts)
+    plot_counts(counts, OUTPUT_DIR, plot_idx, "party_emotions_bar")
+    plot_idx += 1
+
+    # --- Second run: exclude specific topics ---
+    EXCLUDE_TOPICS = ["condolence", "congratulation"]
+    if "topic" in df_long.columns:
+        df_filtered = df_long[~df_long["topic"].isin(EXCLUDE_TOPICS)]
+        counts_filtered = count_party_emotions(df_filtered)
+        if not counts_filtered.empty:
+            print(f"\nExcluded topics: {', '.join(EXCLUDE_TOPICS)}")
+            summarize_top3(counts_filtered)
+            plot_counts(
+                counts_filtered,
+                OUTPUT_DIR,
+                plot_idx,
+                "party_emotions_bar_excluded_condolence_congratulation"
+            )
+            plot_idx += 1
+        else:
+            print("\nAll data removed after excluding topics; skipping second plot.")
+    else:
+        print("\nColumn 'topic' not found; skipping filtered second plot.")
+
+    # --- NEW: Party & Topic emotion intersection ---
+    if "topic" in df_long.columns:
+        counts_pt = count_party_topic_emotions(df_long)
+        if not counts_pt.empty:
+            # Konu seçimi: buraya istediğin konuları yaz (ör: ["economy", "security"])
+            FOCUS_TOPICS = ["economy","migration" , "education" , "justice"]  # "x" yerine ilgilendiğin konuyu ekle
+            existing_focus = [t for t in FOCUS_TOPICS if t in counts_pt["topic"].unique()]
+            if not existing_focus:
+                existing_focus = (
+                    counts_pt.groupby("topic")["count"].sum()
+                             .sort_values(ascending=False)
+                             .head(3)
+                             .index.tolist()
+                )
+            summarize_topic_party_top_emotion(counts_pt, existing_focus)
+            for topic in existing_focus:
+                plot_party_topic_for_topic(counts_pt, topic, OUTPUT_DIR, plot_idx)
+                plot_idx += 1
+            # --- NEW: topic-level emotion pie charts (same focus topics; fallback handled inside) ---
+            plot_idx = plot_topic_emotion_pies(df_long, OUTPUT_DIR, plot_idx, topics=existing_focus)
+        else:
+            print("\nNo data for party-topic-emotion intersection.")
+    else:
+        print("\nColumn 'topic' not found; skipping party-topic-emotion intersection and pies.")
+
+    # --- NEW: Political Side emotion analysis ---
+    if "political_side" in df_long.columns:
+        counts_side = count_side_emotions(df_long)
+        if not counts_side.empty:
+            summarize_side_top(counts_side, top_n=3)
+            plot_side_counts(counts_side, OUTPUT_DIR, plot_idx, "political_side_emotions_bar")
+            plot_idx += 1
+        else:
+            print("\nPolitical Side data empty.")
+    else:
+        print("\nColumn 'political_side' not found; skipping political side emotion analysis.")
+
+    # --- NEW: Time series analysis for selected emotions ---
+    ts_grouped = prepare_time_series(df_long)
+    plot_idx = plot_time_series(ts_grouped, OUTPUT_DIR, plot_idx)
+
+if __name__ == "__main__":
+    main()
