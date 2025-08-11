@@ -209,8 +209,8 @@ def plot_topic_emotion_pies(df_long: pd.DataFrame, output_dir: Path, start_index
         start_index += 1
     return start_index
 
-# --- NEW: Selected emotion time series (Fear, Anger, Pride) ---
-SELECTED_EMOTIONS = ["Fear", "Anger", "Pride"]
+# --- NEW: Selected emotion time series (Fear, Anger) ---
+SELECTED_EMOTIONS = ["Fear", "Anger"]
 
 def detect_datetime_column(df: pd.DataFrame):
     candidates = ["date", "created_at", "createdAt", "timestamp", "Datetime", "Date"]
