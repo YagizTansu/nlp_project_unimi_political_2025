@@ -11,9 +11,7 @@ from transformers import (
 )
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
-import os
+from sklearn.metrics import accuracy_score, classification_report
 import warnings
 warnings.filterwarnings('ignore')
 from sklearn.metrics import f1_score
@@ -136,7 +134,7 @@ def main(model_name="dbmdz/bert-base-turkish-cased"):
     labels = df['label'].tolist()
     
     train_texts, val_texts, train_labels, val_labels = train_test_split(
-        texts, labels, test_size=0.2, random_state=42, stratify=labels
+        texts, labels, test_size=0.15, random_state=42, stratify=labels
     )
     
     print(f"Training samples: {len(train_texts)}")
@@ -164,11 +162,11 @@ def main(model_name="dbmdz/bert-base-turkish-cased"):
     # Training arguments
     training_args = TrainingArguments(
         output_dir='./chekpoints',
-        num_train_epochs=12,  # More epochs
-        per_device_train_batch_size=16,  # Smaller batch size
-        per_device_eval_batch_size=16,
-        gradient_accumulation_steps=16,  # Reduced
-        warmup_ratio=0.15,
+        num_train_epochs=5,  # More epochs
+        per_device_train_batch_size=8,  # Smaller batch size
+        per_device_eval_batch_size=8,
+        gradient_accumulation_steps=4,  # Reduced
+        warmup_ratio=0.1,
         weight_decay=0.02,
         learning_rate=2e-5,  # Lower learning rate
         fp16=True,
@@ -176,7 +174,7 @@ def main(model_name="dbmdz/bert-base-turkish-cased"):
         dataloader_pin_memory=False,
         remove_unused_columns=False,
         logging_dir='./logs',
-        logging_steps=100,
+        logging_steps=50,
         eval_strategy="steps",
         eval_steps=100,  # More frequent evaluation
         save_strategy="steps",
@@ -186,7 +184,6 @@ def main(model_name="dbmdz/bert-base-turkish-cased"):
         greater_is_better=True,
         report_to=None,
         save_total_limit=3,
-        eval_accumulation_steps=2
     )
     
     # Initialize trainer
@@ -221,15 +218,7 @@ def main(model_name="dbmdz/bert-base-turkish-cased"):
     # Classification Report
     print("\nClassification Report:")
     print(classification_report(val_labels, preds, target_names=emotion_labels))
-    
-    # Confusion Matrix
-    print("Generating confusion matrix...")
-    cm = confusion_matrix(val_labels, preds)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=emotion_labels)
-    disp.plot(xticks_rotation=45)
-    plt.tight_layout()
-    plt.show()
-    
+
     # Save the model
     print(f"Saving model to {output_dir}...")
     trainer.save_model(output_dir)
