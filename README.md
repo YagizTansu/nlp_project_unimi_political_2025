@@ -202,7 +202,7 @@ pip install -r requirements.txt
 - `3_tweets_with_emotions/`: Tweets with emotion predictions
 - `4_sentiment_plots/`: Visualization plots and charts
 - `fine_tuned_turkish_emotions/`: Fine-tuned BERT model
-- `all_cleaned_tweets.csv`: Final processed dataset with topics and emotions
+- `3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv`: Final processed dataset with topics and emotions
 
 ## Workflow
 
