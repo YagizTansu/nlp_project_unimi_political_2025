@@ -1,6 +1,38 @@
 # NLP Project - Political Tweet Analysis
 
+Repository containing the code of the project for the "Natural Language Processing" course (Academic Year 2024-25) at the University of Milan, as part of the Master Degree in Computer Science.
+
+**This project is intended for educational purposes only.**
+
 This project collects and analyzes tweets from Turkish politicians to perform natural language processing tasks.
+
+## Project Proposal
+
+**Politics of emotions or propaganda? (P3)**
+
+This project explores how emotional language is used strategically in political texts, such as speeches, social media posts, or debates—to influence perception and manipulate audience response. Students will design a pipeline using transformer-based models to detect emotional framing, categorize tone (e.g., fear, pride, outrage), and highlight shifts in sentiment across political stances or media sources. The goal is not just to classify emotion, but to interpret its rhetorical function within the discourse. 
+
+In order to perform the task, the project should:
+
+- Use pre-trained transformer models (e.g. RoBERTa, BERT fine-tuned on GoEmotions) to classify emotions expressed in each text.
+- Examine how specific emotions (e.g. fear, anger, pride) are used across parties, time periods, or topics to shape opinion.
+- Create plots or dashboards comparing emotional tone across actors, media types, or ideological groups.
+- Apply explainability methods (e.g. SHAP, attention heatmaps) to highlight emotional trigger words and rhetorical patterns.
+
+## AI Disclosure
+
+AI-generated content has been used in this project.
+
+**Model Used:** Claude 4 , ChatGpt
+
+**Purposes:**
+- Generating and improving testing scripts
+- Enhancing the fine-tuning process implementation
+- Debugging and fixing issues in comparison report generation
+- Code optimization and error resolution
+
+**Extent of Integration:**
+All AI-generated code was reviewed and modified as needed, and integrated only after verifying that the changes aligned with the project requirements. The project's scope, structure, methodology, evaluation logic, and code were developed independently, with AI assistance for improvements and debugging.
 
 ## Project Structure
 
@@ -74,7 +106,7 @@ python 3_fine_tune_bert_model.py savasy/bert-base-turkish-sentiment-cased
 Performs zero-shot topic classification on collected tweets.
 
 **Features:**
-- Uses XLM-RoBERTa for multilingual topic classification
+- Uses mDeBERTa-v3 (MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7) for multilingual topic classification
 - Batch processing for efficiency
 - 15 predefined topic categories
 - GPU acceleration support
@@ -90,9 +122,6 @@ Performs zero-shot topic classification on collected tweets.
 ```bash
 # Using default topics
 python 4_topic_extractor.py
-
-# Using custom topics (comma-separated)
-python 4_topic_extractor.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik"
 
 # Using custom topics (comma-separated)
 python 4_topic_extractor.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik, dış politika, sosyal politikalar, çevre, ulaşım, enerji, kültür ve medya, siyaset, yerel yönetim, genel"
