@@ -75,7 +75,7 @@ def classify_topics_batch(texts_batch):
     for result in results:
         max_score = result["scores"][0]
         top_label_tr = result["labels"][0]
-        if max_score < 0.1:
+        if max_score < 0.5:
             top_label_tr = "belirsiz"
         topic_en = label_map.get(top_label_tr, "uncertain")
         topics.append(topic_en)
