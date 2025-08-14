@@ -220,8 +220,5 @@ pip install -r requirements.txt
 - **Topic Classification**: Zero-shot topic classification with 15 categories
 - **Political Analysis**: Comparison between left/right political orientations
 - **Party Comparison**: Emotion distribution across different political parties
-- **Individual Profiles**: Detailed emotion analysis for top politicians
 - **Visualization**: Comprehensive charts, heatmaps, and radar plots
 - **Party Comparison**: Emotion distribution across different political parties
-- **Individual Profiles**: Detailed emotion analysis for top politicians
-- **Visualization**: Comprehensive charts, heatmaps, and radar plots
