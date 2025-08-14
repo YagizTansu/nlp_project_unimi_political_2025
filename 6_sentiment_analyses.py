@@ -262,6 +262,150 @@ def plot_time_series(grouped: pd.DataFrame, output_dir: Path, index: int) -> int
     plt.close()
     return index + 1
 
+# --- NEW: Political Side time series for selected emotions ---
+def prepare_time_series_by_political_side(df_long: pd.DataFrame) -> pd.DataFrame | None:
+    col = detect_datetime_column(df_long)
+    if not col:
+        print("\nNo datetime column detected; skipping political side time series.")
+        return None
+    
+    if "political_side" not in df_long.columns:
+        print("\nColumn 'political_side' not found; skipping political side time series.")
+        return None
+    
+    ts = df_long.copy()
+    ts[col] = pd.to_datetime(ts[col], errors="coerce")
+    ts = ts.dropna(subset=[col])
+    ts = ts[ts["predicted_emotions"].isin(SELECTED_EMOTIONS)]
+    
+    if ts.empty:
+        print("\nNo data for selected emotions in political side time series.")
+        return None
+    
+    span_days = (ts[col].max() - ts[col].min()).days
+    ts["ts_period"] = ts[col].dt.to_period("M").dt.to_timestamp() if span_days > 90 else ts[col].dt.date
+    
+    grouped = (
+        ts.groupby(["ts_period", "political_side", "predicted_emotions"])
+          .size()
+          .reset_index(name="count")
+    )
+    return grouped
+
+def plot_time_series_by_political_side(grouped: pd.DataFrame, output_dir: Path, index: int) -> int:
+    if grouped is None or grouped.empty:
+        return index
+    
+    # Her political side için ayrı subplot oluştur
+    sides = grouped["political_side"].unique()
+    emotions = [e for e in SELECTED_EMOTIONS if e in grouped["predicted_emotions"].unique()]
+    
+    if len(sides) == 0 or len(emotions) == 0:
+        return index
+    
+    fig, axes = plt.subplots(len(sides), 1, figsize=(12, 4 * len(sides)), sharex=True)
+    if len(sides) == 1:
+        axes = [axes]
+    
+    for i, side in enumerate(sides):
+        side_data = grouped[grouped["political_side"] == side]
+        pivoted = side_data.pivot(index="ts_period", columns="predicted_emotions", values="count").fillna(0)
+        
+        # Preserve emotion order
+        cols = [c for c in emotions if c in pivoted.columns]
+        if cols:
+            pivoted = pivoted[cols]
+            
+            for emotion in pivoted.columns:
+                axes[i].plot(pivoted.index, pivoted[emotion], marker="o", linewidth=2, label=emotion)
+            
+            axes[i].set_title(f"Political Side: {side} | Selected Emotions Over Time")
+            axes[i].set_ylabel("Tweet Count")
+            axes[i].legend(title="Emotion")
+            axes[i].tick_params(axis='x', rotation=30)
+    
+    plt.xlabel("Time")
+    plt.suptitle("Time Series of Selected Emotions by Political Side", y=0.98)
+    plt.tight_layout()
+    
+    out_file = output_dir / f"{index}_time_series_emotions_by_political_side.png"
+    plt.savefig(out_file, dpi=300)
+    print(f"Figure saved to: {out_file}")
+    plt.close()
+    return index + 1
+
+# --- NEW: Party time series for selected emotions ---
+def prepare_time_series_by_party(df_long: pd.DataFrame) -> pd.DataFrame | None:
+    col = detect_datetime_column(df_long)
+    if not col:
+        print("\nNo datetime column detected; skipping party time series.")
+        return None
+    
+    if "party" not in df_long.columns:
+        print("\nColumn 'party' not found; skipping party time series.")
+        return None
+    
+    ts = df_long.copy()
+    ts[col] = pd.to_datetime(ts[col], errors="coerce")
+    ts = ts.dropna(subset=[col])
+    ts = ts[ts["predicted_emotions"].isin(SELECTED_EMOTIONS)]
+    
+    if ts.empty:
+        print("\nNo data for selected emotions in party time series.")
+        return None
+    
+    span_days = (ts[col].max() - ts[col].min()).days
+    ts["ts_period"] = ts[col].dt.to_period("M").dt.to_timestamp() if span_days > 90 else ts[col].dt.date
+    
+    grouped = (
+        ts.groupby(["ts_period", "party", "predicted_emotions"])
+          .size()
+          .reset_index(name="count")
+    )
+    return grouped
+
+def plot_time_series_by_party(grouped: pd.DataFrame, output_dir: Path, index: int) -> int:
+    if grouped is None or grouped.empty:
+        return index
+    
+    # Her party için ayrı subplot oluştur
+    parties = grouped["party"].unique()
+    emotions = [e for e in SELECTED_EMOTIONS if e in grouped["predicted_emotions"].unique()]
+    
+    if len(parties) == 0 or len(emotions) == 0:
+        return index
+    
+    fig, axes = plt.subplots(len(parties), 1, figsize=(12, 4 * len(parties)), sharex=True)
+    if len(parties) == 1:
+        axes = [axes]
+    
+    for i, party in enumerate(parties):
+        party_data = grouped[grouped["party"] == party]
+        pivoted = party_data.pivot(index="ts_period", columns="predicted_emotions", values="count").fillna(0)
+        
+        # Preserve emotion order
+        cols = [c for c in emotions if c in pivoted.columns]
+        if cols:
+            pivoted = pivoted[cols]
+            
+            for emotion in pivoted.columns:
+                axes[i].plot(pivoted.index, pivoted[emotion], marker="o", linewidth=2, label=emotion)
+            
+            axes[i].set_title(f"Party: {party} | Selected Emotions Over Time")
+            axes[i].set_ylabel("Tweet Count")
+            axes[i].legend(title="Emotion")
+            axes[i].tick_params(axis='x', rotation=30)
+    
+    plt.xlabel("Time")
+    plt.suptitle("Time Series of Selected Emotions by Party", y=0.98)
+    plt.tight_layout()
+    
+    out_file = output_dir / f"{index}_time_series_emotions_by_party.png"
+    plt.savefig(out_file, dpi=300)
+    print(f"Figure saved to: {out_file}")
+    plt.close()
+    return index + 1
+
 def main():
     # ---- Configuration ----
     CSV_PATH = "/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv"
@@ -338,6 +482,14 @@ def main():
     # --- NEW: Time series analysis for selected emotions ---
     ts_grouped = prepare_time_series(df_long)
     plot_idx = plot_time_series(ts_grouped, OUTPUT_DIR, plot_idx)
+    
+    # --- NEW: Political Side time series for selected emotions ---
+    ts_side_grouped = prepare_time_series_by_political_side(df_long)
+    plot_idx = plot_time_series_by_political_side(ts_side_grouped, OUTPUT_DIR, plot_idx)
+    
+    # --- NEW: Party time series for selected emotions ---
+    ts_party_grouped = prepare_time_series_by_party(df_long)
+    plot_idx = plot_time_series_by_party(ts_party_grouped, OUTPUT_DIR, plot_idx)
 
 if __name__ == "__main__":
     main()
