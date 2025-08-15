@@ -49,16 +49,21 @@ def summarize_top3(counts: pd.DataFrame):
         print(f"  {party}: " + ", ".join(parts))
 
 def plot_counts(counts: pd.DataFrame, output_dir: Path, index: int, label: str):
+    # Calculate percentages
+    counts_pct = counts.copy()
+    total_counts = counts_pct.groupby('party')['count'].transform('sum')
+    counts_pct['percentage'] = (counts_pct['count'] / total_counts) * 100
+    
     plt.figure(figsize=(12, 6))
     sns.barplot(
-        data=counts,
+        data=counts_pct,
         x="party",
-        y="count",
+        y="percentage",
         hue="predicted_emotions",
         edgecolor="black"
     )
-    plt.title("Emotion Distribution by Party")
-    plt.ylabel("Tweet Count")
+    plt.title("Emotion Distribution by Party (Percentage)")
+    plt.ylabel("Percentage (%)")
     plt.xlabel("Party")
     plt.legend(title="Emotion", bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout()
@@ -93,16 +98,22 @@ def plot_party_topic_for_topic(counts_pt: pd.DataFrame, topic: str, output_dir: 
     subset = counts_pt[counts_pt["topic"] == topic]
     if subset.empty:
         return
+    
+    # Calculate percentages
+    subset_pct = subset.copy()
+    total_counts = subset_pct.groupby('party')['count'].transform('sum')
+    subset_pct['percentage'] = (subset_pct['count'] / total_counts) * 100
+    
     plt.figure(figsize=(12, 6))
     sns.barplot(
-        data=subset,
+        data=subset_pct,
         x="party",
-        y="count",
+        y="percentage",
         hue="predicted_emotions",
         edgecolor="black"
     )
-    plt.title(f"Topic: {topic} | Emotion Distribution by Party")
-    plt.ylabel("Tweet Count")
+    plt.title(f"Topic: {topic} | Emotion Distribution by Party (Percentage)")
+    plt.ylabel("Percentage (%)")
     plt.xlabel("Party")
     plt.legend(title="Emotion", bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout()
@@ -132,16 +143,21 @@ def summarize_side_top(counts_side: pd.DataFrame, top_n: int = 3):
         print(f"  {side}: " + ", ".join(parts))
 
 def plot_side_counts(counts_side: pd.DataFrame, output_dir: Path, index: int, label: str):
+    # Calculate percentages
+    counts_pct = counts_side.copy()
+    total_counts = counts_pct.groupby('political_side')['count'].transform('sum')
+    counts_pct['percentage'] = (counts_pct['count'] / total_counts) * 100
+    
     plt.figure(figsize=(10, 6))
     sns.barplot(
-        data=counts_side,
+        data=counts_pct,
         x="political_side",
-        y="count",
+        y="percentage",
         hue="predicted_emotions",
         edgecolor="black"
     )
-    plt.title("Emotion Distribution by Political Side")
-    plt.ylabel("Tweet Count")
+    plt.title("Emotion Distribution by Political Side (Percentage)")
+    plt.ylabel("Percentage (%)")
     plt.xlabel("Political Side")
     plt.legend(title="Emotion", bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout()
@@ -210,8 +226,6 @@ def plot_topic_emotion_pies(df_long: pd.DataFrame, output_dir: Path, start_index
     return start_index
 
 # --- NEW: Selected emotion time series (Fear, Anger) ---
-SELECTED_EMOTIONS = ["Fear", "Anger"]
-
 def detect_datetime_column(df: pd.DataFrame):
     candidates = ["date", "created_at", "createdAt", "timestamp", "Datetime", "Date"]
     for c in candidates:
@@ -219,7 +233,7 @@ def detect_datetime_column(df: pd.DataFrame):
             return c
     return None
 
-def prepare_time_series(df_long: pd.DataFrame) -> pd.DataFrame | None:
+def prepare_time_series(df_long: pd.DataFrame, selected_emotions: list[str]) -> pd.DataFrame | None:
     col = detect_datetime_column(df_long)
     if not col:
         print("\nNo datetime column detected; skipping time series.")
@@ -227,7 +241,7 @@ def prepare_time_series(df_long: pd.DataFrame) -> pd.DataFrame | None:
     ts = df_long.copy()
     ts[col] = pd.to_datetime(ts[col], errors="coerce")
     ts = ts.dropna(subset=[col])
-    ts = ts[ts["predicted_emotions"].isin(SELECTED_EMOTIONS)]
+    ts = ts[ts["predicted_emotions"].isin(selected_emotions)]
     if ts.empty:
         print("\nNo data for selected emotions in time series.")
         return None
@@ -240,17 +254,16 @@ def prepare_time_series(df_long: pd.DataFrame) -> pd.DataFrame | None:
     )
     return grouped
 
-def plot_time_series(grouped: pd.DataFrame, output_dir: Path, index: int) -> int:
+def plot_time_series(grouped: pd.DataFrame, output_dir: Path, index: int, selected_emotions: list[str]) -> int:
     if grouped is None or grouped.empty:
         return index
     pivoted = grouped.pivot(index="ts_period", columns="predicted_emotions", values="count").fillna(0)
-    # Preserve SELECTED_EMOTIONS order where present
-    cols = [c for c in SELECTED_EMOTIONS if c in pivoted.columns]
+    cols = [c for c in selected_emotions if c in pivoted.columns]
     pivoted = pivoted[cols]
     plt.figure(figsize=(12, 5))
     for emotion in pivoted.columns:
         plt.plot(pivoted.index, pivoted[emotion], marker="o", linewidth=2, label=emotion)
-    plt.title("Time Series of Selected Emotions (Fear / Anger / Pride)")
+    plt.title("Time Series of Selected Emotions (Tweet Counts)")
     plt.ylabel("Tweet Count")
     plt.xlabel("Time")
     plt.legend(title="Emotion")
@@ -262,101 +275,72 @@ def plot_time_series(grouped: pd.DataFrame, output_dir: Path, index: int) -> int
     plt.close()
     return index + 1
 
-# --- NEW: Political Side time series for selected emotions ---
-def prepare_time_series_by_political_side(df_long: pd.DataFrame) -> pd.DataFrame | None:
+
+# --- NEW: Election window (± months) time series by party ---
+def prepare_time_series_by_party_election_window(
+    df_long: pd.DataFrame,
+    election_date: str = "2023-05-14",
+    months_window: int = 3,
+    emotions: list[str] | None = None,
+    parties: list[str] | None = None,
+    selected_emotions: list[str] | None = None,
+) -> pd.DataFrame | None:
+    """
+    Build weekly emotion time series for parties within [election - window, election + window].
+    """
     col = detect_datetime_column(df_long)
     if not col:
-        print("\nNo datetime column detected; skipping political side time series.")
+        print("\nNo datetime column detected; skipping election window party time series.")
         return None
-    
-    if "political_side" not in df_long.columns:
-        print("\nColumn 'political_side' not found; skipping political side time series.")
-        return None
-    
+
     ts = df_long.copy()
     ts[col] = pd.to_datetime(ts[col], errors="coerce")
     ts = ts.dropna(subset=[col])
-    ts = ts[ts["predicted_emotions"].isin(SELECTED_EMOTIONS)]
-    
-    if ts.empty:
-        print("\nNo data for selected emotions in political side time series.")
-        return None
-    
-    span_days = (ts[col].max() - ts[col].min()).days
-    ts["ts_period"] = ts[col].dt.to_period("M").dt.to_timestamp() if span_days > 90 else ts[col].dt.date
-    
-    grouped = (
-        ts.groupby(["ts_period", "political_side", "predicted_emotions"])
-          .size()
-          .reset_index(name="count")
-    )
-    return grouped
 
-def plot_time_series_by_political_side(grouped: pd.DataFrame, output_dir: Path, index: int) -> int:
-    if grouped is None or grouped.empty:
-        return index
-    
-    # Her political side için ayrı subplot oluştur
-    sides = grouped["political_side"].unique()
-    emotions = [e for e in SELECTED_EMOTIONS if e in grouped["predicted_emotions"].unique()]
-    
-    if len(sides) == 0 or len(emotions) == 0:
-        return index
-    
-    fig, axes = plt.subplots(len(sides), 1, figsize=(12, 4 * len(sides)), sharex=True)
-    if len(sides) == 1:
-        axes = [axes]
-    
-    for i, side in enumerate(sides):
-        side_data = grouped[grouped["political_side"] == side]
-        pivoted = side_data.pivot(index="ts_period", columns="predicted_emotions", values="count").fillna(0)
-        
-        # Preserve emotion order
-        cols = [c for c in emotions if c in pivoted.columns]
-        if cols:
-            pivoted = pivoted[cols]
-            
-            for emotion in pivoted.columns:
-                axes[i].plot(pivoted.index, pivoted[emotion], marker="o", linewidth=2, label=emotion)
-            
-            axes[i].set_title(f"Political Side: {side} | Selected Emotions Over Time")
-            axes[i].set_ylabel("Tweet Count")
-            axes[i].legend(title="Emotion")
-            axes[i].tick_params(axis='x', rotation=30)
-    
-    plt.xlabel("Time")
-    plt.suptitle("Time Series of Selected Emotions by Political Side", y=0.98)
-    plt.tight_layout()
-    
-    out_file = output_dir / f"{index}_time_series_emotions_by_political_side.png"
-    plt.savefig(out_file, dpi=300)
-    print(f"Figure saved to: {out_file}")
-    plt.close()
-    return index + 1
+    # --- FIX: Normalize timezone to avoid tz-aware vs naive comparison ---
+    if ts[col].dt.tz is not None:
+        ts[col] = ts[col].dt.tz_convert(None)  # drop timezone -> make naive
 
-# --- NEW: Party time series for selected emotions ---
-def prepare_time_series_by_party(df_long: pd.DataFrame) -> pd.DataFrame | None:
-    col = detect_datetime_column(df_long)
-    if not col:
-        print("\nNo datetime column detected; skipping party time series.")
-        return None
-    
-    if "party" not in df_long.columns:
-        print("\nColumn 'party' not found; skipping party time series.")
-        return None
-    
-    ts = df_long.copy()
-    ts[col] = pd.to_datetime(ts[col], errors="coerce")
-    ts = ts.dropna(subset=[col])
-    ts = ts[ts["predicted_emotions"].isin(SELECTED_EMOTIONS)]
-    
+    election_ts = pd.to_datetime(election_date)  # naive
+    start = election_ts - pd.DateOffset(months=months_window)
+    end = election_ts + pd.DateOffset(months=months_window)
+
+    ts = ts[(ts[col] >= start) & (ts[col] <= end)]
     if ts.empty:
-        print("\nNo data for selected emotions in party time series.")
+        print("\nNo data in specified election window.")
         return None
-    
-    span_days = (ts[col].max() - ts[col].min()).days
-    ts["ts_period"] = ts[col].dt.to_period("M").dt.to_timestamp() if span_days > 90 else ts[col].dt.date
-    
+
+    # Emotion selection
+    if emotions is not None and len(emotions) > 0:
+        norm_emotions = {e.strip().capitalize() for e in emotions if isinstance(e, str)}
+        available_emotions = set(ts["predicted_emotions"].unique())
+        matched = norm_emotions & available_emotions
+        if not matched:
+            print(f"\nWarning: None of the specified ELECTION_EMOTIONS found in data: {sorted(norm_emotions)}")
+            return None
+        missing = norm_emotions - matched
+        if missing:
+            print(f"Info: Missing emotions ignored: {sorted(missing)}")
+        ts = ts[ts["predicted_emotions"].isin(matched)]
+        print(f"Applied ELECTION_EMOTIONS filter: {sorted(matched)}")
+    elif "predicted_emotions" in ts.columns and selected_emotions:
+        available = set(selected_emotions) & set(ts["predicted_emotions"].unique())
+        if available:
+            ts = ts[ts["predicted_emotions"].isin(available)]
+            print(f"Fallback to SELECTED_EMOTIONS: {sorted(available)}")
+
+    # Party selection
+    print(f"\nFiltering for parties: {parties}")
+    print(f"Available parties in data: {ts['party'].unique()}")
+    if parties is not None and len(parties) > 0 and "party" in ts.columns:
+        ts = ts[ts["party"].isin(parties)]
+
+    if ts.empty:
+        print("\nNo data after filtering for selected emotions/parties in election window.")
+        return None
+
+    ts["ts_period"] = ts[col].dt.to_period("W").dt.start_time
+
     grouped = (
         ts.groupby(["ts_period", "party", "predicted_emotions"])
           .size()
@@ -364,43 +348,50 @@ def prepare_time_series_by_party(df_long: pd.DataFrame) -> pd.DataFrame | None:
     )
     return grouped
 
-def plot_time_series_by_party(grouped: pd.DataFrame, output_dir: Path, index: int) -> int:
+def plot_time_series_by_party_election_window(
+    grouped: pd.DataFrame,
+    election_date: str,
+    output_dir: Path,
+    index: int
+) -> int:
     if grouped is None or grouped.empty:
         return index
-    
-    # Her party için ayrı subplot oluştur
+
     parties = grouped["party"].unique()
-    emotions = [e for e in SELECTED_EMOTIONS if e in grouped["predicted_emotions"].unique()]
-    
-    if len(parties) == 0 or len(emotions) == 0:
+    if len(parties) == 0:
         return index
-    
+
+    emotions = grouped["predicted_emotions"].unique().tolist()
+    election_ts = pd.to_datetime(election_date)
+
     fig, axes = plt.subplots(len(parties), 1, figsize=(12, 4 * len(parties)), sharex=True)
     if len(parties) == 1:
         axes = [axes]
-    
+
     for i, party in enumerate(parties):
         party_data = grouped[grouped["party"] == party]
         pivoted = party_data.pivot(index="ts_period", columns="predicted_emotions", values="count").fillna(0)
-        
-        # Preserve emotion order
+
         cols = [c for c in emotions if c in pivoted.columns]
-        if cols:
-            pivoted = pivoted[cols]
-            
-            for emotion in pivoted.columns:
-                axes[i].plot(pivoted.index, pivoted[emotion], marker="o", linewidth=2, label=emotion)
-            
-            axes[i].set_title(f"Party: {party} | Selected Emotions Over Time")
-            axes[i].set_ylabel("Tweet Count")
-            axes[i].legend(title="Emotion")
-            axes[i].tick_params(axis='x', rotation=30)
-    
-    plt.xlabel("Time")
-    plt.suptitle("Time Series of Selected Emotions by Party", y=0.98)
+        pivoted = pivoted[cols]
+
+        for emotion in pivoted.columns:
+            axes[i].plot(pivoted.index, pivoted[emotion], marker="o", linewidth=2, label=emotion)
+
+        # Election day marker
+        axes[i].axvline(election_ts, color="red", linestyle="--", linewidth=1,
+                        label="Election Day" if i == 0 else None)
+
+        axes[i].set_title(f"Party: {party} | Emotions Around Election (Weekly Tweet Counts)")
+        axes[i].set_ylabel("Tweet Count")
+        axes[i].legend(title="Emotion")
+        axes[i].tick_params(axis="x", rotation=30)
+
+    plt.xlabel("Week Start")
+    plt.suptitle("Selected Emotions by Party (± Election Window) - Tweet Counts", y=0.98)
     plt.tight_layout()
-    
-    out_file = output_dir / f"{index}_time_series_emotions_by_party.png"
+    out_file = output_dir / f"{index}_time_series_emotions_by_party_election_window.png"
+    output_dir.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_file, dpi=300)
     print(f"Figure saved to: {out_file}")
     plt.close()
@@ -411,6 +402,14 @@ def main():
     CSV_PATH = "/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv"
     OUTPUT_DIR = Path("4_sentiment_plots")
     plot_idx = 1  # sıralı dosya isimleri
+    # --- NEW CONFIG: Election window analysis (edit as needed) ---
+    ELECTION_DATE = "2023-05-14"
+    ELECTION_WINDOW_MONTHS = 2
+    # Leave empty list [] to include all available; otherwise list e.g. ["PartyA","PartyB"]
+    ELECTION_PARTIES: list[str] = ["MHP", "CHP","DEM"]  # örnek: ["AKP","CHP"]
+    # Emotions to include (leave [] for auto / SELECTED_EMOTIONS fallback). Example: ["Fear","Anger","Joy"]
+    ELECTION_EMOTIONS: list[str] = ["Anger" , "Happy"]  # örnek: ["Fear","Anger","Joy"]
+    SELECTED_EMOTIONS: list[str] = ["Anger", "Happy"]  # main içinde tanımlandı
 
     df = load_data(CSV_PATH)
     df_long = explode_emotions(df)
@@ -447,7 +446,7 @@ def main():
         counts_pt = count_party_topic_emotions(df_long)
         if not counts_pt.empty:
             # Konu seçimi: buraya istediğin konuları yaz (ör: ["economy", "security"])
-            FOCUS_TOPICS = ["economy","migration" , "education" , "justice"]  # "x" yerine ilgilendiğin konuyu ekle
+            FOCUS_TOPICS = ["economy","migration" ,"health","justice"]  # "x" yerine ilgilendiğin konuyu ekle
             existing_focus = [t for t in FOCUS_TOPICS if t in counts_pt["topic"].unique()]
             if not existing_focus:
                 existing_focus = (
@@ -480,16 +479,24 @@ def main():
         print("\nColumn 'political_side' not found; skipping political side emotion analysis.")
 
     # --- NEW: Time series analysis for selected emotions ---
-    ts_grouped = prepare_time_series(df_long)
-    plot_idx = plot_time_series(ts_grouped, OUTPUT_DIR, plot_idx)
-    
-    # --- NEW: Political Side time series for selected emotions ---
-    ts_side_grouped = prepare_time_series_by_political_side(df_long)
-    plot_idx = plot_time_series_by_political_side(ts_side_grouped, OUTPUT_DIR, plot_idx)
-    
-    # --- NEW: Party time series for selected emotions ---
-    ts_party_grouped = prepare_time_series_by_party(df_long)
-    plot_idx = plot_time_series_by_party(ts_party_grouped, OUTPUT_DIR, plot_idx)
+    ts_grouped = prepare_time_series(df_long, SELECTED_EMOTIONS)
+    plot_idx = plot_time_series(ts_grouped, OUTPUT_DIR, plot_idx, SELECTED_EMOTIONS)
+
+    # --- NEW CALL: Election date ± window (weekly) party time series ---
+    election_grouped = prepare_time_series_by_party_election_window(
+        df_long,
+        election_date=ELECTION_DATE,
+        months_window=ELECTION_WINDOW_MONTHS,
+        emotions=ELECTION_EMOTIONS,
+        parties=ELECTION_PARTIES,
+        selected_emotions=SELECTED_EMOTIONS
+    )
+    plot_idx = plot_time_series_by_party_election_window(
+        election_grouped,
+        election_date=ELECTION_DATE,
+        output_dir=OUTPUT_DIR,
+        index=plot_idx
+    )
 
 if __name__ == "__main__":
     main()

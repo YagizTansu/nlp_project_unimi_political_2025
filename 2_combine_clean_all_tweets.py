@@ -77,6 +77,36 @@ def is_single_word_tweet(text):
     
     return False
 
+def is_political_rally_tweet(text):
+    """Filter out tweets about political rallies, meetings, and events"""
+    if pd.isna(text):
+        return False
+    
+    text = str(text).lower()
+    
+    # Political rally and meeting keywords
+    rally_keywords = [
+        'millet buluşması', 'millet buluşma', 'buluşma',
+        'miting', 'büyük miting', 'gençlik buluşması',
+        'kadın buluşması', 'aile buluşması',
+        'seçim mitingi', 'seçim buluşması',
+        'halk buluşması', 'birlik mitingi',
+        'destekçi buluşması', 'kardeşlik buluşması',
+        'aday tanıtım', 'aday lansman',
+        'toplu açılış', 'açılış töreni',
+        'proje tanıtım', 'basın toplantısı',
+        'ziyaret etti', 'ziyaretimiz', 'ziyaret',
+        'protokol', 'resmi tören', 'tören',
+        'konuşma yaptı', 'konuşmamız', 'açıklama yaptı'
+    ]
+    
+    # Check if any rally keyword exists in the text
+    for keyword in rally_keywords:
+        if keyword in text:
+            return True
+    
+    return False
+
 def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/politicians.csv'):
     # Read politician parties data
     parties_df = pd.read_csv(politicians_csv_path)
@@ -101,9 +131,16 @@ def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/pol
     print("Cleaning tweet text...")
     full_tweets['Text'] = full_tweets['Text'].apply(clean_text)
     
+    # Filter out political rally and meeting tweets
+    print("Filtering out political rally and meeting tweets...")
+    initial_count = len(full_tweets)
+    full_tweets = full_tweets[~full_tweets['Text'].apply(is_political_rally_tweet)]
+    rally_filtered_count = len(full_tweets)
+    print(f"Removed {initial_count - rally_filtered_count} political rally/meeting tweets")
+    
     # Filter out single word or too short tweets
     print("Filtering out single word and too short tweets...")
-    initial_count = len(full_tweets)
+    initial_count = rally_filtered_count
     full_tweets = full_tweets[~full_tweets['Text'].apply(is_single_word_tweet)]
     filtered_count = len(full_tweets)
     print(f"Removed {initial_count - filtered_count} single word/short tweets")
