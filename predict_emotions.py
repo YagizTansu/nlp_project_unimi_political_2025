@@ -26,7 +26,7 @@ print(f"Loaded fine-tuned model from: {model_path}")
 print(f"Available emotions: {emotion_labels}")
 
 # Load the full tweets dataset
-full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_topic_tweets.csv')
+full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_tweets_with_topics.csv')
 print(f"Loaded {len(full_tweets_df)} tweets")
 
 # Prediction function for single-class classification

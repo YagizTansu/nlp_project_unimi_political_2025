@@ -1,7 +1,7 @@
-/data_raw
-/data_processed
-/datasets
-/visualizations
-/fine_tuned_model
-/results
-/checkpoints
+/data_raw/*
+/data_processed/*
+/datasets/*
+/fine_tuned_model/*
+/checkpoints/*
+/visualizations/*
+/outputs/*

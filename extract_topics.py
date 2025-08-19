@@ -93,7 +93,7 @@ for i in tqdm(range(0, len(df), batch_size)):
 
 # Sonuçlar İngilizce etiketlerle kaydediliyor
 df["topic"] = topics
-df.to_csv("1_politican_tweets_combined_data/all_cleaned_topic_tweets.csv", index=False)
+df.to_csv("1_politican_tweets_combined_data/all_cleaned_tweets_with_topics.csv", index=False)
 
 # Konu dağılımı (İngilizce)
 print("\n=== KONU DAĞILIMI (İngilizce) ===")
