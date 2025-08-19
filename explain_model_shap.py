@@ -43,7 +43,7 @@ nlp_pipe = pipeline(
 # -----------------------------
 # Load dataset (5 tweets per emotion)
 # -----------------------------
-df = pd.read_csv("./3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv")
+df = pd.read_csv("./outputs/all_cleaned_tweets_with_topics_and_emotions.csv")
 target_emotions = ["Anger", "Disgust", "Fear", "Happy", "Sadness", "Surprise"]
 emotion_samples = []
 for emotion in target_emotions:

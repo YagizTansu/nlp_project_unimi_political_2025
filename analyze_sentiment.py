@@ -399,7 +399,7 @@ def plot_time_series_by_party_election_window(
 
 def main():
     # ---- Configuration ----
-    CSV_PATH = "/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv"
+    CSV_PATH = "/home/yagiz/Desktop/nlp_project/outputs/all_cleaned_tweets_with_topics_and_emotions.csv"
     OUTPUT_DIR = Path("visualizations")
     plot_idx = 1  # sıralı dosya isimleri
     # --- NEW CONFIG: Election window analysis (edit as needed) ---

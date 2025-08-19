@@ -130,7 +130,7 @@ cleaned_tweets_df['predicted_emotions'] = predicted_emotions
 cleaned_tweets_df['top3_emotions'] = top3_emotions
 
 # Save the cleaned dataset
-output_path = '/home/yagiz/Desktop/nlp_project/3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv'
+output_path = '/home/yagiz/Desktop/nlp_project/outputs/all_cleaned_tweets_with_topics_and_emotions.csv'
 cleaned_tweets_df.to_csv(output_path, index=False)
 print(f"Cleaned dataset saved to: {output_path}")
 

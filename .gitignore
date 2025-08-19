@@ -1,9 +1,7 @@
 /data_raw
 /data_processed
 /datasets
-/3_tweets_with_emotions
 /visualizations
 /fine_tuned_model
 /results
 /checkpoints
-/sentiment_plots
