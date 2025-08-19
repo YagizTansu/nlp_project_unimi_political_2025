@@ -258,7 +258,7 @@ async def main():
     )
     
     # Process all politicians from CSV
-    csv_file_path = "politicians.csv"
+    csv_file_path = "data_raw/politicians.csv"
     await process_all_politicians(csv_file_path, tweet_limit=100)
 
 asyncio.run(main())

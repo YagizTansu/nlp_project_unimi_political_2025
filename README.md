@@ -48,7 +48,7 @@ Collects tweets from politicians listed in a CSV file using the Twitter API.
 
 **Usage:**
 ```bash
-# Using default politicians.csv file and 100 tweet limit
+# Using default data_raw/politicians.csv file and 100 tweet limit
 python  collect_tweets.py
 
 # Using custom CSV file with default 100 tweet limit
@@ -71,7 +71,7 @@ Combines all collected tweet files and cleans the text data.
 
 **Usage:**
 ```bash
-# Using default politicians.csv file
+# Using default data_raw/politicians.csv file
 python  clean_combine_tweets.py
 
 # Using custom politicians CSV file
@@ -191,7 +191,7 @@ python explain_model_shap.py
 
 ## Politicians CSV Format
 
-The `politicians.csv` file contains 28 Turkish politicians from 6 different parties you can change it !!!:
+The `data_raw/politicians.csv` file contains 28 Turkish politicians from 6 different parties you can change it !!!:
 
 **Column Descriptions:**
 - `Author`: Twitter username (without @ symbol)

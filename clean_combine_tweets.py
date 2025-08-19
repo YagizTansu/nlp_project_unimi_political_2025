@@ -107,7 +107,7 @@ def is_political_rally_tweet(text):
     
     return False
 
-def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/politicians.csv'):
+def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/data_raw/politicians.csv'):
     # Read politician parties data
     parties_df = pd.read_csv(politicians_csv_path)
 
@@ -161,12 +161,12 @@ def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/pol
 
 
 if __name__ == "__main__":
-    # Get politicians.csv path from command line argument or use default
+    # Get data_raw/politicians.csv path from command line argument or use default
     if len(sys.argv) > 1:
         politicians_csv_path = sys.argv[1]
         print(f"Using politicians CSV file: {politicians_csv_path}")
     else:
-        politicians_csv_path = '/home/yagiz/Desktop/nlp_project/politicians.csv'
+        politicians_csv_path = '/home/yagiz/Desktop/nlp_project/data_raw/politicians.csv'
         print(f"Using default politicians CSV file: {politicians_csv_path}")
     
     # Check if the file exists
