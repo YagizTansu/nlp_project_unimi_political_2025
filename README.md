@@ -217,12 +217,12 @@ pip install -r requirements.txt
 ## Output Structure
 
 - `data_raw/`: Individual CSV files for each politician
-- `1_politican_tweets_combined_data/`: Combined and cleaned tweet data
-- `data_processed//`: Emotion classification datasets (TrEmo)
+- `data_processed/`: Combined and cleaned tweet data
+- `datasets/`: Emotion classification datasets (TrEmo) and go_emotions_turkish_train
 - `outputs/`: Tweets with emotion predictions
 - `visualizations/`: Visualization plots and charts
 - `fine_tuned_model/`: Fine-tuned BERT model
-- `outputs/all_cleaned_tweets_with_topics_and_emotions.csv`: Final processed dataset with topics and emotions
+- `outputs/`: Final processed dataset with topics and emotions
 
 ## Workflow
 
