@@ -81,13 +81,13 @@ class WeightedTrainer(Trainer):
 
 def main(model_name="dbmdz/bert-base-turkish-cased"):
     # Model configuration
-    output_dir = "./fine_tuned_turkish_emotions"
+    output_dir = "./fine_tuned_model"
     
     print(f"Using model: {model_name}")
     
     # Load data
     print("Loading data...")
-    df = pd.read_csv('/home/yagiz/Desktop/nlp_project/2_turkish_emotions_datasets/tremo_data.csv')
+    df = pd.read_csv('/home/yagiz/Desktop/nlp_project/data_processed//tremo_data.csv')
     
     # Data preprocessing
     print("Preprocessing data...")
@@ -161,7 +161,7 @@ def main(model_name="dbmdz/bert-base-turkish-cased"):
     
     # Training arguments
     training_args = TrainingArguments(
-        output_dir='./chekpoints',
+        output_dir='./checkpoints',
         num_train_epochs=5,  # More epochs
         per_device_train_batch_size=8,  # Smaller batch size
         per_device_eval_batch_size=8,

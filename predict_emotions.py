@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load the fine-tuned model and tokenizer
-model_path = "./fine_tuned_turkish_emotions"
+model_path = "./fine_tuned_model"
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForSequenceClassification.from_pretrained(model_path)
 model.to(device)

@@ -112,7 +112,7 @@ def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/pol
     parties_df = pd.read_csv(politicians_csv_path)
 
     # Get all CSV files from raw_data folder
-    raw_data_path = '/home/yagiz/Desktop/nlp_project/0_politican_tweets_raw_data/*.csv'
+    raw_data_path = '/home/yagiz/Desktop/nlp_project/data_raw/*.csv'
     csv_files = glob.glob(raw_data_path)
     
     # Read and combine all CSV files

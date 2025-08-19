@@ -36,7 +36,7 @@ All AI-generated code was reviewed and modified as needed, and integrated only a
 
 ## Project Structure
 
-### 1. Data Collection (`1_data_collection.py`)
+### 1. Data Collection (` collect_tweets.py`)
 Collects tweets from politicians listed in a CSV file using the Twitter API.
 
 **Features:**
@@ -49,16 +49,16 @@ Collects tweets from politicians listed in a CSV file using the Twitter API.
 **Usage:**
 ```bash
 # Using default politicians.csv file and 100 tweet limit
-python 1_data_collection.py
+python  collect_tweets.py
 
 # Using custom CSV file with default 100 tweet limit
-python 1_data_collection.py path/to/your/politicians.csv
+python  collect_tweets.py path/to/your/politicians.csv
 
 # Using custom CSV file and custom tweet limit
-python 1_data_collection.py path/to/your/politicians.csv 1000
+python  collect_tweets.py path/to/your/politicians.csv 1000
 ```
 
-### 2. Data Cleaning and Combination (`2_combine_clean_all_tweets.py`)
+### 2. Data Cleaning and Combination (` clean_combine_tweets.py`)
 Combines all collected tweet files and cleans the text data.
 
 **Features:**
@@ -72,13 +72,13 @@ Combines all collected tweet files and cleans the text data.
 **Usage:**
 ```bash
 # Using default politicians.csv file
-python 2_combine_clean_all_tweets.py
+python  clean_combine_tweets.py
 
 # Using custom politicians CSV file
-python 2_combine_clean_all_tweets.py path/to/your/politicians.csv
+python  clean_combine_tweets.py path/to/your/politicians.csv
 ```
 
-### 3. BERT Model Fine-tuning (`3_fine_tune_bert_model.py`)
+### 3. BERT Model Fine-tuning (` clean_combine_tweets.py`)
 Fine-tunes a Turkish BERT model for emotion classification using the TrEmo dataset.
 
 **Features:**
@@ -92,17 +92,17 @@ Fine-tunes a Turkish BERT model for emotion classification using the TrEmo datas
 **Usage:**
 ```bash
 # Using default Turkish BERT model
-python 3_fine_tune_bert_model.py
+python  clean_combine_tweets.py
 
 # Using custom model
-python 3_fine_tune_bert_model.py savasy/bert-base-turkish-sentiment-cased
+python  clean_combine_tweets.py savasy/bert-base-turkish-sentiment-cased
 ```
 
 **Supported Models:**
 - `dbmdz/bert-base-turkish-cased` (default)
 - Any compatible  BERT model from Hugging Faces
 
-### 4. Topic Extraction (`4_topic_extractor.py`)
+### 4. Topic Extraction (`extract_topics.py`)
 Performs zero-shot topic classification on collected tweets.
 
 **Features:**
@@ -121,13 +121,13 @@ Performs zero-shot topic classification on collected tweets.
 **Usage:**
 ```bash
 # Using default topics
-python 4_topic_extractor.py
+python extract_topics.py
 
 # Using custom topics (comma-separated)
-python 4_topic_extractor.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik, dış politika, sosyal politikalar, çevre, ulaşım, enerji, kültür ve medya, siyaset, yerel yönetim, genel"
+python extract_topics.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik, dış politika, sosyal politikalar, çevre, ulaşım, enerji, kültür ve medya, siyaset, yerel yönetim, genel"
 ```
 
-### 5. Emotion Classification (`5_emotions_classification_of_tweets.py`)
+### 5. Emotion Classification (` predict_emotions.py`)
 Applies the fine-tuned emotion model to classify emotions in collected tweets.
 
 **Features:**
@@ -143,10 +143,10 @@ Applies the fine-tuned emotion model to classify emotions in collected tweets.
 
 **Usage:**
 ```bash
-python 5_emotions_classification_of_tweets.py
+python  predict_emotions.py
 ```
 
-### 6. Sentiment Analysis and Visualization (`6_sentiment_analyses.py`)
+### 6. Sentiment Analysis and Visualization (`analyze_sentiment.py`)
 Creates comprehensive visualizations and analysis of emotions across political dimensions.
 
 **Features:**
@@ -166,8 +166,28 @@ Creates comprehensive visualizations and analysis of emotions across political d
 
 **Usage:**
 ```bash
-python 6_sentiment_analyses.py
+python analyze_sentiment.py
 ```
+
+### 7. Model Explainability (SHAP) (`explain_model_shap.py`)
+Generates interactive SHAP explanations for emotion predictions on selected tweets.
+
+**Features:**
+- Loads fine-tuned Turkish BERT emotion model
+- Selects 5 tweets per emotion for analysis
+- Translates tweets to English for interpretability
+- Computes SHAP values for each tweet using HuggingFace pipeline
+- Generates a modern HTML dashboard with sidebar navigation
+- Visualizes token-level contributions for each emotion
+- Includes attention heatmap plotting function (optional)
+
+**Usage:**
+```bash
+python explain_model_shap.py
+```
+
+**Output:**
+- `visualizations/shap_explanations_all.html`: Interactive HTML file with SHAP explanations for all selected tweets
 
 ## Politicians CSV Format
 
@@ -192,27 +212,27 @@ PASSWORD=your_password
 pip install -r requirements.txt
 ```
 
-3. Download the TrEmo dataset and place `tremo_data.csv` in `2_turkish_emotions_datasets/` folder
+3. Download the TrEmo dataset and place `tremo_data.csv` in `data_processed//` folder
 
 ## Output Structure
 
-- `0_politican_tweets_raw_data/`: Individual CSV files for each politician
+- `data_raw/`: Individual CSV files for each politician
 - `1_politican_tweets_combined_data/`: Combined and cleaned tweet data
-- `2_turkish_emotions_datasets/`: Emotion classification datasets (TrEmo)
+- `data_processed//`: Emotion classification datasets (TrEmo)
 - `3_tweets_with_emotions/`: Tweets with emotion predictions
-- `4_sentiment_plots/`: Visualization plots and charts
-- `fine_tuned_turkish_emotions/`: Fine-tuned BERT model
+- `visualizations/`: Visualization plots and charts
+- `fine_tuned_model/`: Fine-tuned BERT model
 - `3_tweets_with_emotions/all_cleaned_tweets_with_topics_and_emotions.csv`: Final processed dataset with topics and emotions
 
 ## Workflow
 
-1. **Data Collection**: Run `1_data_collection.py` to gather tweets
-2. **Data Cleaning**: Run `2_combine_clean_all_tweets.py` to clean and combine data
-3. **Model Training**: Run `3_fine_tune_bert_model.py` to train emotion classifier with tremo_data.csv (includes text and their emotions)
-4. **Topic Extraction**: Run `4_topic_extractor.py` to add topic labels
-5. **Emotion Classification**: Run `5_emotions_classification_of_tweets.py` to predict emotions
-6. **Analysis & Visualization**: Run `6_sentiment_analyses.py` to create comprehensive analysis
-
+1. **Data Collection**: Run ` collect_tweets.py` to gather tweets
+2. **Data Cleaning**: Run ` clean_combine_tweets.py` to clean and combine data
+3. **Model Training**: Run ` clean_combine_tweets.py` to train emotion classifier with tremo_data.csv (includes text and their emotions)
+4. **Topic Extraction**: Run `extract_topics.py` to add topic labels
+5. **Emotion Classification**: Run ` predict_emotions.py` to predict emotions
+6. **Analysis & Visualization**: Run `analyze_sentiment.py` to create comprehensive analysis
+7. **Model Explainability**: Run `explain_model_shap.py` to generate SHAP explanations
 
 ## Analysis Features
 

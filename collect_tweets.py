@@ -98,7 +98,7 @@ async def get_user_tweets(username, limit=10):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Create raw_data directory if it doesn't exist
-    raw_data_dir = "0_politican_tweets_raw_data"
+    raw_data_dir = "data_raw"
     if not os.path.exists(raw_data_dir):
         os.makedirs(raw_data_dir)
     
