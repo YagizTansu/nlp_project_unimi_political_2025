@@ -173,13 +173,13 @@ python analyze_sentiment.py
 Generates interactive SHAP explanations for emotion predictions on selected tweets.
 
 **Features:**
-- Loads fine-tuned Turkish BERT emotion model
-- Selects 5 tweets per emotion for analysis
-- Translates tweets to English for interpretability
+- Loads the fine-tuned Turkish BERT emotion model and tokenizer
+- Selects 5 tweets per emotion from the dataset for analysis
+- Translates each tweet to English for interpretability (using deep-translator)
 - Computes SHAP values for each tweet using HuggingFace pipeline
-- Generates a modern HTML dashboard with sidebar navigation
-- Visualizes token-level contributions for each emotion
-- Includes attention heatmap plotting function (optional)
+- Generates a modern HTML dashboard with sidebar navigation grouped by emotion
+- Visualizes token-level contributions for each emotion prediction
+- Includes a function to plot attention heatmaps for any tweet (optional, not run by default)
 
 **Usage:**
 ```bash
@@ -187,7 +187,7 @@ python explain_model_shap.py
 ```
 
 **Output:**
-- `visualizations/shap_explanations_all.html`: Interactive HTML file with SHAP explanations for all selected tweets
+- `visualizations/shap_explanations_all.html`: Interactive HTML file with SHAP explanations for all selected tweets, grouped by emotion with sidebar navigation and show/hide controls for each explanation block
 
 ## Politicians CSV Format
 
