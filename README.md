@@ -78,7 +78,7 @@ python  clean_combine_tweets.py
 python  clean_combine_tweets.py path/to/your/politicians.csv
 ```
 
-### 3. BERT Model Fine-tuning (` clean_combine_tweets.py`)
+### 3. BERT Model Fine-tuning (` fine_tune_bert.py`)
 Fine-tunes a Turkish BERT model for emotion classification using the TrEmo dataset.
 
 **Features:**
@@ -92,10 +92,10 @@ Fine-tunes a Turkish BERT model for emotion classification using the TrEmo datas
 **Usage:**
 ```bash
 # Using default Turkish BERT model
-python  clean_combine_tweets.py
+python  fine_tune_bert.py
 
 # Using custom model
-python  clean_combine_tweets.py savasy/bert-base-turkish-sentiment-cased
+python  fine_tune_bert.py savasy/bert-base-turkish-sentiment-cased
 ```
 
 **Supported Models:**
@@ -228,7 +228,7 @@ pip install -r requirements.txt
 
 1. **Data Collection**: Run ` collect_tweets.py` to gather tweets
 2. **Data Cleaning**: Run ` clean_combine_tweets.py` to clean and combine data
-3. **Model Training**: Run ` clean_combine_tweets.py` to train emotion classifier with tremo_data.csv (includes text and their emotions)
+3. **Model Training**: Run ` fine_tune_bert.py` to train emotion classifier with tremo_data.csv (includes text and their emotions)
 4. **Topic Extraction**: Run `extract_topics.py` to add topic labels
 5. **Emotion Classification**: Run ` predict_emotions.py` to predict emotions
 6. **Analysis & Visualization**: Run `analyze_sentiment.py` to create comprehensive analysis
