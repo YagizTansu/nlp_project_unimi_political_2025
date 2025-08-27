@@ -102,7 +102,7 @@ python  fine_tune_bert.py savasy/bert-base-turkish-sentiment-cased
 - `dbmdz/bert-base-turkish-cased` (default)
 - Any compatible  BERT model from Hugging Faces
 
-### 4. Topic Extraction (`extract_topics.py`)
+### 4. Topic Extraction (`predict_topics.py`)
 Performs zero-shot topic classification on collected tweets.
 
 **Features:**
@@ -121,10 +121,10 @@ Performs zero-shot topic classification on collected tweets.
 **Usage:**
 ```bash
 # Using default topics
-python extract_topics.py
+python predict_topics.py
 
 # Using custom topics (comma-separated)
-python extract_topics.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik, dış politika, sosyal politikalar, çevre, ulaşım, enerji, kültür ve medya, siyaset, yerel yönetim, genel"
+python predict_topics.py --topics "göç, ekonomi, eğitim, sağlık, adalet, güvenlik, dış politika, sosyal politikalar, çevre, ulaşım, enerji, kültür ve medya, siyaset, yerel yönetim, genel"
 ```
 
 ### 5. Emotion Classification (` predict_emotions.py`)
@@ -229,7 +229,7 @@ pip install -r requirements.txt
 1. **Data Collection**: Run ` collect_tweets.py` to gather tweets
 2. **Data Cleaning**: Run ` clean_combine_tweets.py` to clean and combine data
 3. **Model Training**: Run ` fine_tune_bert.py` to train emotion classifier with tremo_data.csv (includes text and their emotions)
-4. **Topic Extraction**: Run `extract_topics.py` to add topic labels
+4. **Topic Extraction**: Run `predict_topics.py` to add topic labels
 5. **Emotion Classification**: Run ` predict_emotions.py` to predict emotions
 6. **Analysis & Visualization**: Run `analyze_sentiment.py` to create comprehensive analysis
 7. **Model Explainability**: Run `explain_model_shap.py` to generate SHAP explanations
