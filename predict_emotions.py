@@ -65,14 +65,14 @@ def get_emotion_prediction(text):
         with torch.no_grad():
             outputs = model(**inputs)
             probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1).cpu().numpy()[0]
-        
-        # Get emotions with confidence over 20%
-        high_confidence_indices = [idx for idx, prob in enumerate(probabilities) if prob >= 0.50]
+
+        # Get emotions with confidence over 70%
+        high_confidence_indices = [idx for idx, prob in enumerate(probabilities) if prob >= 0.70]
         
         # Sort by confidence (highest first) and take top 2
         high_confidence_indices = sorted(high_confidence_indices, key=lambda idx: probabilities[idx], reverse=True)[:2]
-        
-        # If no emotions have 20%+ confidence, just take the top one
+
+        # If no emotions have 70%+ confidence, just take the top one
         if not high_confidence_indices:
             high_confidence_indices = [probabilities.argmax()]
             
