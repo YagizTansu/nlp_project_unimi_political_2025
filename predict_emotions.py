@@ -17,7 +17,6 @@ model.eval()
 with open(f'{model_path}/label_mappings.json', 'r', encoding='utf-8') as f:
     mappings = json.load(f)
     id2label = {int(k): v for k, v in mappings['id2label'].items()}
-    label2id = mappings['label2id']
     emotion_labels = mappings['emotion_labels']
 
 print(f"Available emotions: {emotion_labels}")
