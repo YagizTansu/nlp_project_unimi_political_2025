@@ -26,7 +26,7 @@ print(f"Loaded fine-tuned model from: {model_path}")
 print(f"Available emotions: {emotion_labels}")
 
 # Load the full tweets dataset
-full_tweets_df = pd.read_csv('/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_tweets_with_topics.csv')
+full_tweets_df = pd.read_csv('/home/yagiz/Desktop/Lectures/Projects/nlp_project/data_processed/all_cleaned_tweets_with_topics.csv')
 print(f"Loaded {len(full_tweets_df)} tweets")
 
 # Prediction function for single-class classification
@@ -67,7 +67,7 @@ def get_emotion_prediction(text):
             probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1).cpu().numpy()[0]
         
         # Get emotions with confidence over 20%
-        high_confidence_indices = [idx for idx, prob in enumerate(probabilities) if prob >= 0.05]
+        high_confidence_indices = [idx for idx, prob in enumerate(probabilities) if prob >= 0.50]
         
         # Sort by confidence (highest first) and take top 2
         high_confidence_indices = sorted(high_confidence_indices, key=lambda idx: probabilities[idx], reverse=True)[:2]
@@ -130,7 +130,7 @@ cleaned_tweets_df['predicted_emotions'] = predicted_emotions
 cleaned_tweets_df['top3_emotions'] = top3_emotions
 
 # Save the cleaned dataset
-output_path = '/home/yagiz/Desktop/nlp_project/outputs/all_cleaned_tweets_with_topics_and_emotions.csv'
+output_path = '/home/yagiz/Desktop/Lectures/Projects/nlp_project/outputs/all_cleaned_tweets_with_topics_and_emotions.csv'
 cleaned_tweets_df.to_csv(output_path, index=False)
 print(f"Cleaned dataset saved to: {output_path}")
 

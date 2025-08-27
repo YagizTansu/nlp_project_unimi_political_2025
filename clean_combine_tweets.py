@@ -107,12 +107,12 @@ def is_political_rally_tweet(text):
     
     return False
 
-def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/data_raw/politicians.csv'):
+def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/Lectures/Projects/nlp_project/data_raw/politicians.csv'):
     # Read politician parties data
     parties_df = pd.read_csv(politicians_csv_path)
 
     # Get all CSV files from raw_data folder
-    raw_data_path = '/home/yagiz/Desktop/nlp_project/data_raw/*.csv'
+    raw_data_path = '/home/yagiz/Desktop/Lectures/Projects/nlp_project/data_raw/*.csv'
     csv_files = glob.glob(raw_data_path)
     
     # Read and combine all CSV files
@@ -150,7 +150,7 @@ def combine_tweet_data(politicians_csv_path='/home/yagiz/Desktop/nlp_project/dat
     full_tweets = full_tweets[columns_order]
     
     # Save the result
-    output_file = '/home/yagiz/Desktop/nlp_project/1_politican_tweets_combined_data/all_cleaned_tweets.csv'
+    output_file = '/home/yagiz/Desktop/Lectures/Projects/nlp_project/data_processed/all_cleaned_tweets.csv'
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     full_tweets.to_csv(output_file, index=False)
     
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         politicians_csv_path = sys.argv[1]
         print(f"Using politicians CSV file: {politicians_csv_path}")
     else:
-        politicians_csv_path = '/home/yagiz/Desktop/nlp_project/data_raw/politicians.csv'
+        politicians_csv_path = '/home/yagiz/Desktop/Lectures/Projects/nlp_project/data_raw/politicians.csv'
         print(f"Using default politicians CSV file: {politicians_csv_path}")
     
     # Check if the file exists

@@ -66,7 +66,7 @@ classifier = pipeline("zero-shot-classification",
                         device=device,multi_label=True)
 
 # Tweet veri çerçevesini yükle
-df = pd.read_csv("1_politican_tweets_combined_data/all_cleaned_tweets.csv")
+df = pd.read_csv("data_processed/all_cleaned_tweets.csv")
 
 # Batch sınıflandırma fonksiyonu (Türkçe etiket -> İngilizce kaydet)
 def classify_topics_batch(texts_batch):
@@ -93,7 +93,7 @@ for i in tqdm(range(0, len(df), batch_size)):
 
 # Sonuçlar İngilizce etiketlerle kaydediliyor
 df["topic"] = topics
-df.to_csv("1_politican_tweets_combined_data/all_cleaned_tweets_with_topics.csv", index=False)
+df.to_csv("data_processed/all_cleaned_tweets_with_topics.csv", index=False)
 
 # Konu dağılımı (İngilizce)
 print("\n=== KONU DAĞILIMI (İngilizce) ===")

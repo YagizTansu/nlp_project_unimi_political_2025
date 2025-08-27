@@ -40,7 +40,7 @@ def main(model_name="dbmdz/bert-base-turkish-cased"):
     
     # Load data
     print("Loading data...")
-    df = pd.read_csv('/home/yagiz/Desktop/nlp_project/data_processed//tremo_data.csv')
+    df = pd.read_csv('/home/yagiz/Desktop/Lectures/Projects/nlp_project/data_processed//tremo_data.csv')
     
     # Data preprocessing
     print("Preprocessing data...")
