@@ -3,9 +3,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import warnings
 import json
-
 warnings.filterwarnings('ignore')
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load the fine-tuned model and tokenizer
@@ -22,35 +20,11 @@ with open(f'{model_path}/label_mappings.json', 'r', encoding='utf-8') as f:
     label2id = mappings['label2id']
     emotion_labels = mappings['emotion_labels']
 
-print(f"Loaded fine-tuned model from: {model_path}")
 print(f"Available emotions: {emotion_labels}")
 
 # Load the full tweets dataset
 full_tweets_df = pd.read_csv('/home/yagiz/Desktop/Lectures/Projects/nlp_project/data_processed/all_cleaned_tweets_with_topics.csv')
 print(f"Loaded {len(full_tweets_df)} tweets")
-
-# Prediction function for single-class classification
-def predict_emotion(text, return_top_k=3):
-    model.eval()
-    if not text.strip():
-        return None, []
-        
-    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=128)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    
-    with torch.no_grad():
-        outputs = model(**inputs)
-        probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1).cpu().numpy()[0]
-
-    # Get top predictions
-    top_indices = probabilities.argsort()[-return_top_k:][::-1]
-    top_predictions = [(id2label[idx], probabilities[idx]) for idx in top_indices]
-    
-    # Best prediction
-    best_emotion = id2label[probabilities.argmax()]
-    
-    return best_emotion, top_predictions
-
 
 # Function to get emotion prediction for a text
 def get_emotion_prediction(text):

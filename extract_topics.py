@@ -5,14 +5,14 @@ import torch
 import argparse
 import random
 
-# tqdm'u pandas ile entegre et
+# Integrate tqdm with pandas
 tqdm.pandas()
 
-# GPU kontrolü
+# GPU check
 device = 0 if torch.cuda.is_available() else -1
-print(f"Kullanılan cihaz: {'GPU' if device == 0 else 'CPU'}")
+print(f"Device used: {'GPU' if device == 0 else 'CPU'}")
 
-# Türkçe -> İngilizce konu eşlemesi
+# Turkish -> English topic mapping
 label_map = {
     "göç": "migration",
     "ekonomi": "economy",
@@ -30,15 +30,15 @@ label_map = {
     "genel": "general"
     }
 
-# Varsayılan (MODEL İÇİN) Türkçe konu etiketleri
+# Default (for MODEL) Turkish topic labels
 default_candidate_labels = list(label_map.keys())
 
-# Komut satırı argümanlarını parse et
-parser = argparse.ArgumentParser(description='Tweet konu sınıflandırması')
-parser.add_argument('--topics', nargs='*', help='Kullanıcı tanımlı konular (Türkçe veya İngilizce, virgülle ayrılmış)')
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Tweet topic classification')
+parser.add_argument('--topics', nargs='*', help='User-defined topics (Turkish or English, comma-separated)')
 args = parser.parse_args()
 
-# Kullanıcı tanımlı konular varsa işle (Türkçe veya İngilizce kabul)
+# Process user-defined topics if provided (accepts Turkish or English)
 if args.topics:
     raw = [t.strip().lower() for t in ' '.join(args.topics).split(',')]
     reverse_map = {v: k for k, v in label_map.items()}
@@ -49,26 +49,26 @@ if args.topics:
         elif t in reverse_map:           # English provided -> convert to Turkish
             candidate_labels.append(reverse_map[t])
         else:
-            print(f"Uyarı: '{t}' tanınmadı ve atlandı.")
+            print(f"Warning: '{t}' not recognized and skipped.")
     if not candidate_labels:
-        print("Geçerli konu bulunamadı, varsayılanlar kullanılıyor.")
+        print("No valid topic found, using defaults.")
         candidate_labels = default_candidate_labels
-    print(f"Modelde kullanılacak (Türkçe) konular: {candidate_labels}")
+    print(f"Topics to be used in model (Turkish): {candidate_labels}")
 else:
     candidate_labels = default_candidate_labels
-    print("Varsayılan Türkçe konular kullanılıyor.")
+    print("Default Turkish topics are used.")
 
-print(f"Toplam konu sayısı (model): {len(candidate_labels)}")
+print(f"Total number of topics (model): {len(candidate_labels)}")
 
-# Zero-shot sınıflandırıcıyı hazırla
+# Prepare zero-shot classifier
 classifier = pipeline("zero-shot-classification", 
                         model="MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7", 
                         device=device,multi_label=True)
 
-# Tweet veri çerçevesini yükle
+# Load tweet dataframe
 df = pd.read_csv("data_processed/all_cleaned_tweets.csv")
 
-# Batch sınıflandırma fonksiyonu (Türkçe etiket -> İngilizce kaydet)
+# Batch classification function (Turkish label -> save as English)
 def classify_topics_batch(texts_batch):
     results = classifier(texts_batch, candidate_labels=candidate_labels)
     topics = []
@@ -81,34 +81,34 @@ def classify_topics_batch(texts_batch):
         topics.append(topic_en)
     return topics
 
-# Batch boyutu
+# Batch size
 batch_size = 8
 topics = []
 
-# İşlem döngüsü
+# Processing loop
 for i in tqdm(range(0, len(df), batch_size)):
     batch_texts = df["Text"][i:i+batch_size].tolist()
     batch_topics = classify_topics_batch(batch_texts)
     topics.extend(batch_topics)
 
-# Sonuçlar İngilizce etiketlerle kaydediliyor
+# Results are saved with English labels
 df["topic"] = topics
 df.to_csv("data_processed/all_cleaned_tweets_with_topics.csv", index=False)
 
-# Konu dağılımı (İngilizce)
-print("\n=== KONU DAĞILIMI (İngilizce) ===")
+# Topic distribution (English)
+print("\n=== TOPIC DISTRIBUTION (English) ===")
 topic_counts = df["topic"].value_counts()
 for topic, count in topic_counts.items():
-    print(f"{topic}: {count} tweet")
+    print(f"{topic}: {count} tweets")
 
-# Her konudan 5'er örnek yazdır
-print("\n=== HER KONUDAN 5 RASTGELE ÖRNEK ===")
+# Print 5 random samples from each topic
+print("\n=== 5 RANDOM SAMPLES FROM EACH TOPIC ===")
 for topic in topic_counts.index:
     topic_tweets = df[df["topic"] == topic]["Text"].tolist()
     if len(topic_tweets) > 0:
         sample_size = min(5, len(topic_tweets))
         random_samples = random.sample(topic_tweets, sample_size)
         
-        print(f"\n--- {topic.upper()} ({sample_size} örnek) ---")
+        print(f"\n--- {topic.upper()} ({sample_size} samples) ---")
         for i, tweet in enumerate(random_samples, 1):
             print(f"{i}. {tweet[:200]}{'...' if len(tweet) > 200 else ''}")
